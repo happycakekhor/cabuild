@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import GlobalHeader from "@/components/global-header";
-import WorkspaceRail from "@/components/workspace-rail";
+import PageMotion from "@/components/page-motion";
 import {
   configureDramaStorageOwner,
   createLibraryAssetId,
@@ -334,17 +334,8 @@ return (
           />
         </header>
 
+        <PageMotion pageKey={page}>
         <div className="workspace-content-frame drama-workspace-frame">
-          <WorkspaceRail
-            mode="drama"
-            activePage={
-              page === "assets"
-                ? "asset-library"
-                : page === "info"
-                  ? "production-info"
-                  : undefined
-            }
-          />
           <div className="main-panel workspace-main-panel">
           <PageIntro title={meta.title} description={meta.description} eyebrow="Drama Studio" tone="lilac" art={page === "assets" ? "library" : "story"}>{page === "overview" || page === "productions" ? (
               <Link href="/drama-studio" className="primary-button">
@@ -373,6 +364,7 @@ return (
           </div>
           <span className="workspace-rail-balance" aria-hidden="true" />
         </div>
+        </PageMotion>
       </main>
 
       <StatusToast toast={toast} onDismiss={() => setToast(null)} />

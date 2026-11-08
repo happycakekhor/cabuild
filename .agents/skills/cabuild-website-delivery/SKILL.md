@@ -33,6 +33,14 @@ Never force-push. Treat `origin/main` as the implementation source of truth and 
 - Update `PROJECT_HANDOFF.md` for a material feature, architecture, migration, deployment, or operational change.
 - Never commit credentials, `.env` files, provider payloads containing secrets, production data, or generated secret material.
 
+## UI/UX design and motion
+
+For every CABUILD UI/UX change, also read and apply the installed [UI UX Pro Max skill](C:/Users/User/.codex/skills/ui-ux-pro-max/SKILL.md), sourced from https://github.com/nextlevelbuilder/ui-ux-pro-max-skill. If it is missing, use the skill-installer workflow to install `.claude/skills/ui-ux-pro-max` from that repository before continuing UI work. It supplements this delivery workflow; it does not replace Git, UAT, deployment, data-safety or user-approval requirements.
+
+Use the smallest relevant design/domain/stack query and check that recommendations fit CABUILD's installed Next.js version. Approved user designs, existing product behavior and explicit palette/layout choices take precedence over generated recommendations. Keep a neutral sidebar, green Content Creator and purple Drama Studio navigation, with at most one expanded group unless the user requests a different design.
+
+Use restrained entrance/page/interaction motion that does not remount forms, replay on background polling, delay navigation, block input, or hide focused controls. Respect `prefers-reduced-motion`, cancel superseded transitions, and verify keyboard, mobile, history, unsaved edits and asynchronous-job persistence in UAT. Do not add an animation dependency for effects that CSS or the Web Animations API can provide.
+
 ## Compile, run, and repair until healthy
 
 After implementation, run the complete local gate:

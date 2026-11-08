@@ -64,7 +64,7 @@ import { notifyCreditUsage } from "@/lib/credit-refresh";
 import { contentCreatorQueue } from "@/lib/content-origin";
 import GlobalHeader from "@/components/global-header";
 import WelcomeHome from "@/components/welcome-home";
-import WorkspaceRail from "@/components/workspace-rail";
+import PageMotion from "@/components/page-motion";
 import type { Asset, AutomationJob, AutomationRule, AutomationSourceRun, AutomationSourceWatcher, BrandKit, Brief, Competitor, CompetitorResult, Opportunity, Platform, PromptTemplates, PublishItem, SocialAudit, Workspace } from "@/lib/types";
 import type { PersonaMediaAsset, PersonaProfile } from "@/lib/types";
 import { appendPersonaContext, buildPersonaContext } from "@/lib/persona";
@@ -429,7 +429,7 @@ export default function Home() {
         <header className="topbar">
           <GlobalHeader
             activeMode={screen === "home" || screen === "account" || screen === "settings" ? null : "normal"}
-            activePage={screen === "create" ? "publish" : screen}
+            activePage={screen}
             initialAccount={data.user}
             initialWorkspaceCredits={data.workspace.credits}
             onBeforeLeave={confirmLeave}
@@ -439,13 +439,13 @@ export default function Home() {
 
         </header>
 
+        <PageMotion pageKey={screen}>
         {screen === "home" ? (
           <section className="panel active">
             <HomePanel data={data} setScreen={navigateScreen} openDrama={() => router.push("/drama-studio?step=1")} />
           </section>
         ) : (
           <div className="workspace-content-frame normal-workspace-frame">
-            {screen !== "account" && screen !== "settings" && <WorkspaceRail mode="normal" activePage={screen === "create" ? "publish" : screen} onNormalNavigate={navigateScreen} />}
             <section className="panel active">
               {screen === "audit" && <SocialAuditPanel data={data} run={run} onNavigate={navigateScreen} />}
               {screen === "persona" && <PersonaPanel data={data} run={run} onEditingChange={setPersonaEditing} />}
@@ -462,6 +462,7 @@ export default function Home() {
             <span className="workspace-rail-balance" aria-hidden="true" />
           </div>
         )}
+        </PageMotion>
       </main>
 
     </div>
@@ -1942,7 +1943,6 @@ function CreateContentPanel({ sourceId, data, run, setScreen, setPendingGenerati
   const initial = source ? createInitialFromResearchResult(source, data.promptTemplates) : defaultInitial;
   return (
     <div className="create-page">
-      <div className="composer-heading"><div><h2>Create Content</h2><p>Choose your direction, write your prompt, and generate.</p></div></div>
       {source ? <ResearchContentComposer initial={initial} persona={data.personaProfile} personaAssets={data.personaProfile.mediaAssets || []} run={run} onClose={() => setScreen("publish")} setScreen={setScreen} setPendingGeneration={setPendingGeneration} /> : <CreateContentModule
         initial={initial}
         persona={data.personaProfile}
@@ -2068,7 +2068,7 @@ function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, compo
       {previewAsset?.assetUrl && <AssetPreviewPanel asset={previewAsset} onClose={() => setPreviewAsset(null)} />}
 
       {infoItem && <ContentInfo item={infoItem} asset={data.assets.find(asset => asset.id === infoItem.assetId)} onClose={() => setInfoItem(null)} />}
-      <PageIntro title="My Contents" description="Create, review and download your Content Creator outputs." art="library">{composer ? <button type="button" className="primary" onClick={onLibrary}><ArrowLeft size={17} />My Contents</button> : <button type="button" className="primary" onClick={onCreate}><Plus size={17} />Create Content</button>}
+      <PageIntro title={composer ? "Create Content" : "My Contents"} description={composer ? "Choose your direction, write your prompt, and generate." : "Create, review and download your Content Creator outputs."} art="library">{composer ? <button type="button" className="primary" onClick={onLibrary}><ArrowLeft size={17} />My Contents</button> : <button type="button" className="primary" onClick={onCreate}><Plus size={17} />Create Content</button>}
       </PageIntro>
       {generationNotice && <div className="generation-notice">{generationNotice}</div>}
       {composer}

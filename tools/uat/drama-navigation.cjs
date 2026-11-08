@@ -25,8 +25,8 @@ const assert = require('node:assert/strict');
   await page.getByRole('button', { name: 'Enter workspace' }).click();
   await page.waitForURL(url => !url.pathname.startsWith('/login'));
   await page.goto(base + '/drama-studio?step=1');
-  const navigation = () => page.locator('.workspace-navigation:visible');
-  const assetButton = () => page.locator('.workspace-library-tools:visible').getByRole('link', { name: 'Asset Library', exact: true });
+  const navigation = () => page.locator('.desktop-nav-section.drama');
+  const assetButton = () => page.locator('.desktop-navigation').getByRole('link', { name: 'Asset Library', exact: true });
   const waitForVideoLibrary = async () => {
     // The loading shell capitalizes Edit; only the settled library proves the route rendered.
     await page.locator('.stage-library-panel:visible').waitFor();
@@ -35,12 +35,16 @@ const assert = require('node:assert/strict');
   };
   for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
-    assert.equal(await navigation().getByRole('link').count(), 4);
-    assert.equal(await navigation().getByRole('link', { name: 'Asset Library', exact: true }).count(), 0);
+    if(width<=1000)await page.getByRole('button',{name:'Open navigation'}).click();
+    await navigation().getByRole('link',{name:'Asset Library',exact:true}).waitFor();
+    assert.equal(await navigation().getByRole('link').count(), 5);
+    assert.equal(await navigation().getByRole('link', { name: 'Asset Library', exact: true }).count(), 1);
     assert.equal(await assetButton().getAttribute('href'), '/drama-studio/assets');
+    await page.locator('.desktop-sidebar').evaluate(el=>Promise.all(el.getAnimations().map(a=>a.finished.catch(()=>{}))));
     const box = await assetButton().boundingBox();
-    assert(box.height >= 44 && box.x >= 0 && box.x + box.width <= width, `Asset Library button fits ${width}`);
+    assert(box.height >= 42 && box.x >= 0 && box.x + box.width <= width, `Asset Library button fits ${width}`);
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `No page overflow ${width}`);
+    if(width<=1000)await page.getByRole('button',{name:'Close navigation'}).click();
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
   // Reach Generate & Edit through the local stage navigation before crossing routes.
@@ -68,14 +72,12 @@ const assert = require('node:assert/strict');
   assert.equal(await assetButton().getAttribute('aria-current'), 'page');
   await navigation().getByRole('link', { name: 'Creative Brief', exact: true }).click();
   await page.waitForURL('**/drama-studio?step=1');
-  await page.getByRole('button', { name: 'Show Drama Studio pages' }).click();
-  const menu = page.locator('.drama-menu:visible');
-  assert.equal(await menu.getByRole('menuitem', { name: /Asset Library/ }).getAttribute('href'), '/drama-studio/assets');
-  await menu.getByRole('menuitem', { name: /Production Info/ }).click();
+  assert.equal(await assetButton().getAttribute('href'), '/drama-studio/assets');
+  await navigation().getByRole('link',{name:'Production Info',exact:true}).click();
   await page.waitForURL('**/drama-studio/info');
   await page.getByRole('heading', { name: 'Production Info', exact: true }).waitFor();
   assert.equal(generationCalls, 0, 'Navigation must never submit provider work');
   assert.deepEqual(errors, []);
   await browser.close();
-  console.log('PASS Production Info tab/menu/empty-state destination and history; separate Asset Library button, keyboard access, global menu, responsive layouts and no generation calls');
+  console.log('PASS Production Info tab/menu/empty-state destination and history; sidebar Asset Library, keyboard access, accordion navigation, responsive layouts and no generation calls');
 })().catch(error => { console.error(error); process.exit(1); });

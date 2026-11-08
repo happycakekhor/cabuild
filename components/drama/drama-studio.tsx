@@ -11,7 +11,7 @@ import PageIntro from "@/components/page-intro";
 import Image from "next/image";
 import Link from "next/link";
 import GlobalHeader from "@/components/global-header";
-import WorkspaceRail from "@/components/workspace-rail";
+import PageMotion from "@/components/page-motion";
 import {
   configureDramaStorageOwner,
   createLibraryAssetId,
@@ -3036,17 +3036,8 @@ const markChanged = () => {
           />
         </header>
 
+        <PageMotion pageKey={activeStep}>
         <div className="workspace-content-frame drama-workspace-frame">
-          <WorkspaceRail
-            mode="drama"
-            activePage={
-              activeStep === 1
-                ? "creative-brief"
-                : activeStep === 5
-                  ? "generate-edit"
-                  : "story-studio"
-            }
-          />
           <div className="main-panel" key={activeStep}>
           <PageIntro title={steps[activeStep - 1].label} description={getStepDescription(activeStep)} eyebrow="Drama Studio" tone="lilac" art="story" />
 
@@ -3253,6 +3244,7 @@ const markChanged = () => {
           </div>
           <span className="workspace-rail-balance" aria-hidden="true" />
         </div>
+        </PageMotion>
       </main>
 
       <StatusToast toast={toast} onDismiss={() => setToast(null)} />

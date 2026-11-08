@@ -1,6 +1,15 @@
 # CABuild Project Handoff
 
-Last updated: 2026-09-01
+Last updated: 2026-11-08
+
+## 2026-11-08 — Desktop workspace and UI/UX workflow
+
+- Approved HTML design applied to the real website: a neutral persistent left sidebar on desktop, green Content Creator and purple Drama Studio accordion groups (one open at a time), separate Create Content navigation, account/settings access, and an accessible drawer at widths up to 1000px. Horizontal workspace rails are removed from active routes.
+- Full-width working canvas, local Plus Jakarta Sans font, consistent cards/forms and clearer headers across Content Creator, Settings and Drama Studio. Overview uses the authenticated workspace outputs and activity; example art is labeled only for empty output lists. Provider APIs, ownership, saved history, polling and publishing behavior are unchanged.
+- PageMotion animates existing DOM on page changes without a keyed remount; credit/polling updates do not replay it. Sidebar/button feedback is brief and interruptible. Reduced-motion preferences disable these effects, including changes during a transition.
+- Components: `workspace-sidebar.tsx`, `workspace-pages.ts`, `page-motion.tsx`; theme: `app/desktop-workspace.css`; self-hosted font and OFL license: `public/fonts/`. No animation package added.
+- The CABUILD delivery/project skills now require UI UX Pro Max for UI/UX work. Installed upstream revision `4f2dbb67e64969a9a30ab00742f2d55d66ddec2b` from `nextlevelbuilder/ui-ux-pro-max-skill`, `.claude/skills/ui-ux-pro-max`. Use the locally installed skill search scripts; approved design and actual Next.js 14 compatibility take precedence over generated patterns.
+- Local acceptance includes `tools/uat/desktop-workspace.cjs`, Settings/Developer regression, header balances, keyboard/unsaved-edit recovery and independent read-only UAT. All browser provider mutations must remain mocked. Release result is recorded in the persistent project log after deployment.
 
 ## Purpose
 ContentAgent Social is a local Next.js prototype for research, content planning, AI generation, and publishing. The mock UI is the visual source of truth when it conflicts with the PRD.

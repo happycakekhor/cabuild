@@ -1,10 +1,12 @@
 # Website capabilities
 
-Updated: 2026-09-13. This guide describes the routes and controls implemented in this repository. Provider-backed features require an authenticated account, a configured provider, and sufficient balance. A visible control does not imply a successful live provider test.
+Updated: 2026-11-08. This guide describes the routes and controls implemented in this repository. Provider-backed features require an authenticated account, a configured provider, and sufficient balance. A visible control does not imply a successful live provider test.
 
 ## Getting around
 
-The Content Agent logo returns Home. The header keeps Home on the left and Content Creator, Drama Studio, credits and account controls on the right. Hover over either workspace to see its page links, or hover over Credits for balances. Tap/click toggles and keyboard access remain available. Create Content and My Contents are available inside the Content Creator menu, without duplicate top-level buttons. Section links remain visible inside each workspace; Logs appears below the workflow tabs as a separate button, matching Drama Asset Library. Settings is available only through the account menu, which opens on hover, tap/click or keyboard and contains Account, Settings and Log out. Pages share a centered 1080px content canvas with responsive gutters; phone navigation wraps into two columns.
+The CABUILD logo returns to Overview. A neutral desktop sidebar holds Content Creator and Drama Studio as green and purple collapsible groups; opening one closes the other. Navigating opens the relevant group. Create Content has its own destination; Logs, Settings and account details remain directly accessible. At tablet and phone widths (1000px and below), a button opens the same navigation as a keyboard-accessible drawer. The compact header retains provider/workspace balances and the account menu. Working pages fill the available desktop canvas with responsive gutters.
+
+Page entrances and navigation use brief, interruptible motion without remounting editors or replaying on provider polling. Reduced-motion preferences disable the effects. Existing unsaved-change confirmations remain in force. Overview displays real recent outputs and queue activity; only empty-workspace concept art is illustrative.
 
 ## Page and feature directory
 

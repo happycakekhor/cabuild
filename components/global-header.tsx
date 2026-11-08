@@ -5,28 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import "./header-credits.css";
 import { CREDIT_REFRESH_EVENT } from "@/lib/credit-refresh";
-import {
-  Activity,
-  BarChart3,
-  BookOpen,
-  Box,
-  Bug,
-  CalendarDays,
-  ChevronDown,
-  Clapperboard,
-  Coins,
-  Info,
-  LogOut,
-  Radar,
-  RefreshCcw,
-  Settings,
-  Sparkles,
-  UserRound,
-  Wand2,
-  WandSparkles,
-} from "lucide-react";
-
-export type HeaderWorkspaceMode = "normal" | "drama" | null;
+import { ChevronDown, Coins, LogOut, Menu, RefreshCcw, Settings, UserRound } from "lucide-react";
 
 type AccountSummary = {
   user: { id?: string; name: string; email: string; role: string };
@@ -42,23 +21,9 @@ type AccountSummary = {
   }>;
 };
 
-export const normalPages = [
-  { id: "persona", label: "Persona", detail: "Voice, audience and brand assets", icon: UserRound },
-  { id: "research", label: "Research", detail: "Find proven topics and source content", icon: Radar },
-  { id: "publish", label: "My Contents", detail: "Create content and review your outputs", icon: CalendarDays },
-  { id: "automation", label: "Automation", detail: "Schedule repeatable content workflows", icon: RefreshCcw },
-  { id: "audit", label: "Social Audit", detail: "Understand connected-account performance", icon: BarChart3 },
-  { id: "analyse", label: "Analyze", detail: "Track themes, gaps and performance", icon: Activity },
-  { id: "logs", label: "Logs", detail: "Inspect provider jobs and errors", icon: Bug },
-] as const;
-
-export const dramaPages = [
-  { id: "creative-brief", label: "Creative Brief", detail: "Format, audience and production intent", href: "/drama-studio?step=1", icon: WandSparkles },
-  { id: "story-studio", label: "Story Studio", detail: "Story, visual assets and scene prompts", href: "/drama-studio?step=2", icon: BookOpen },
-  { id: "generate-edit", label: "Generate & Edit", detail: "Create, review and refine production media", href: "/drama-studio?step=5", icon: Clapperboard },
-  { id: "production-info", label: "Production Info", detail: "Final episodes, sources and deliverables", href: "/drama-studio/info", icon: Info },
-  { id: "asset-library", label: "Asset Library", detail: "Characters, locations, props and media", href: "/drama-studio/assets", icon: Box },
-] as const;
+import WorkspaceSidebar from "./workspace-sidebar";
+import { normalPages, dramaPages, type HeaderWorkspaceMode } from "./workspace-pages";
+export { normalPages, dramaPages, type HeaderWorkspaceMode } from "./workspace-pages";
 
 export default function GlobalHeader({
   activeMode,
@@ -80,6 +45,8 @@ export default function GlobalHeader({
   onNormalNavigate?: (page: string) => void;
 }) {
   const router = useRouter();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const closeSidebar = useCallback(() => setMobileOpen(false), []);
   const destination = (path: string) => `${frontendBaseUrl}${path}`;
   const headerRef = useRef<HTMLDivElement>(null);
   const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -176,14 +143,6 @@ export default function GlobalHeader({
 
   useEffect(() => () => { if (hoverCloseTimer.current) clearTimeout(hoverCloseTimer.current); }, []);
 
-  const openHome = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    if (!onHomeNavigate) return;
-    event.preventDefault();
-    onHomeNavigate();
-    setOpenPanel(null);
-    setSuppressedPanel(null);
-  };
-
   const openNormal = (page: string, event?: React.MouseEvent) => {
     if (!onNormalNavigate) return;
     event?.preventDefault();
@@ -241,61 +200,14 @@ export default function GlobalHeader({
     .toUpperCase();
 
   return (
+    <>
+    <WorkspaceSidebar activeMode={activeMode} activePage={activePage} account={account} workspaceName={summary?.workspace.name} frontendBaseUrl={frontendBaseUrl} onHomeNavigate={onHomeNavigate} onNormalNavigate={onNormalNavigate} mobileOpen={mobileOpen} onClose={closeSidebar} />
     <div className="global-header" ref={headerRef}>
       <div className="global-header-inner">
-        <Link href={destination("/")} className="global-brand" aria-label="Content Agent home" onClick={openHome}>
-          <span className="global-brand-logo"><Sparkles size={17} /></span>
-          <span className="global-brand-copy">
-            <b>Content Agent</b>
-            <small>AI content operations</small>
-          </span>
-        </Link>
-
-        <nav className="global-workspace-nav" aria-label="Content Agent workspaces">
-          <div {...panelGroupProps("normal")} className={`global-nav-group ${openPanel === "normal" ? "open" : ""} ${suppressedPanel === "normal" ? "suppress-hover" : ""}`}>
-            <div className={`global-nav-trigger ${activeMode === "normal" ? "active" : ""}`}>
-              <Link href={destination("/?view=persona")} onClick={(event) => openNormal("persona", event)}>
-                <Wand2 size={15} /> Content Creator
-              </Link>
-              <button type="button" aria-label="Show Content Creator pages" aria-expanded={openPanel === "normal"} onClick={() => setOpenPanel(openPanel === "normal" ? null : "normal")}>
-                <ChevronDown size={13} />
-              </button>
-            </div>
-            <div className="global-nav-menu normal-menu" role="menu">
-              <div className="global-menu-heading"><span>Content Creator</span><small>Content workflow and operations</small></div>
-              <div className="drama-menu-columns creator-menu-columns">
-                {[normalPages.filter(page => page.id !== "research" && page.id !== "logs"), normalPages.filter(page => page.id === "research" || page.id === "logs")].map((pages, index) => <div className="drama-menu-column" key={index}>
-                  <span className="drama-menu-column-label">{index === 0 ? "Create & manage" : "Research & logs"}</span>
-                  {pages.map(({ id, label, detail, icon: Icon }) => <Link key={id} href={destination("/?view=" + id)} className={"global-menu-item " + (activeMode === "normal" && activePage === id ? "active" : "")} onClick={event => openNormal(id, event)} role="menuitem"><span><Icon size={14} /></span><span><b>{label}</b><small>{detail}</small></span></Link>)}
-                </div>)}
-              </div>
-            </div>
-          </div>
-
-          <div {...panelGroupProps("drama")} className={`global-nav-group ${openPanel === "drama" ? "open" : ""} ${suppressedPanel === "drama" ? "suppress-hover" : ""}`}>
-            <div className={`global-nav-trigger ${activeMode === "drama" ? "active" : ""}`}>
-              <Link href={destination("/drama-studio?step=1")} onClick={() => { setOpenPanel(null); setSuppressedPanel("drama"); }}><Clapperboard size={15} /> Drama Studio</Link>
-              <button type="button" aria-label="Show Drama Studio pages" aria-expanded={openPanel === "drama"} onClick={() => setOpenPanel(openPanel === "drama" ? null : "drama")}>
-                <ChevronDown size={13} />
-              </button>
-            </div>
-            <div className="global-nav-menu drama-menu" role="menu">
-              <div className="global-menu-heading"><span>Drama Studio</span><small>From brief to production library</small></div>
-              <div className="drama-menu-columns">
-                {[dramaPages.filter(page => page.id !== "asset-library"), dramaPages.filter(page => page.id === "asset-library")].map((pages, index) => (
-                  <div className="drama-menu-column" key={index}>
-                    <span className="drama-menu-column-label">{index === 0 ? "Create a drama" : "Your library"}</span>
-                    {pages.map(({ id, label, detail, href, icon: Icon }) => (
-                      <Link key={id} href={destination(href)} className={`global-menu-item ${activeMode === "drama" && activePage === id ? "active" : ""}`} onClick={() => { setOpenPanel(null); setSuppressedPanel("drama"); }} role="menuitem">
-                        <span><Icon size={14} /></span><span><b>{label}</b><small>{detail}</small></span>
-                      </Link>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </nav>
+        <div className="desktop-topbar-title">
+          <button type="button" className="desktop-nav-open" aria-label="Open navigation" aria-expanded={mobileOpen} aria-controls="workspace-sidebar" onClick={() => setMobileOpen(true)}><Menu size={20} /></button>
+          <div className="desktop-breadcrumb"><span>Workspace</span><span aria-hidden="true">/</span><strong>{[...normalPages, ...dramaPages].find(page => page.id === activePage)?.label || (activePage === "settings" ? "Settings" : activePage === "account" ? "Account" : "Overview")}</strong></div>
+        </div>
 
         <div className="global-header-actions">
           <div {...panelGroupProps("credits")} className={`global-action-group ${openPanel === "credits" ? "open" : ""} ${suppressedPanel === "credits" ? "suppress-hover" : ""}`}>
@@ -343,5 +255,6 @@ export default function GlobalHeader({
         </div>
       </div>
     </div>
+    </>
   );
 }

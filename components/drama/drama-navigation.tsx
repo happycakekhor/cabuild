@@ -4,15 +4,15 @@ import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 import GlobalHeader, { dramaPages } from "@/components/global-header";
-import WorkspaceRail from "@/components/workspace-rail";
 import PageIntro from "@/components/page-intro";
+import { WorkspaceNavigationVisibility } from "@/components/workspace-sidebar";
 
 export function DramaPageLoading({ href }: { href?: string }) {
   const pathname = usePathname();
   const search = useSearchParams();
   const currentHref = pathname === "/drama-studio" ? `${pathname}?step=${search.get("step") || 1}` : pathname;
   const page = dramaPages.find(page => page.href === (href || currentHref)) || dramaPages[0];
-  return <div className="app-shell drama-loading-shell"><main className="main"><header className="topbar"><GlobalHeader activeMode="drama" activePage={page.id} /></header><div className="workspace-content-frame drama-workspace-frame"><WorkspaceRail mode="drama" activePage={page.id} /><div className="main-panel" aria-busy="true"><PageIntro title={page.label} description={page.detail} eyebrow="Drama Studio" tone="lilac" art={page.id === "asset-library" ? "library" : "story"} /><section className="drama-loading-card" role="status"><LoaderCircle size={26} /><div><h2>Loading {page.label}</h2><p>Bringing your saved work into view…</p></div></section><div className="drama-loading-skeleton" aria-hidden="true"><span /><span /><span /></div></div></div></main></div>;
+  return <div className="app-shell drama-loading-shell"><main className="main"><header className="topbar"><GlobalHeader activeMode="drama" activePage={page.id} /></header><div className="workspace-content-frame drama-workspace-frame"><div className="main-panel" aria-busy="true"><PageIntro title={page.label} description={page.detail} eyebrow="Drama Studio" tone="lilac" art={page.id === "asset-library" ? "library" : "story"} /><section className="drama-loading-card" role="status"><LoaderCircle size={26} /><div><h2>Loading {page.label}</h2><p>Bringing your saved work into view…</p></div></section><div className="drama-loading-skeleton" aria-hidden="true"><span /><span /><span /></div></div></div></main></div>;
 }
 
 export default function DramaNavigation({ children }: { children: React.ReactNode }) {
@@ -51,7 +51,7 @@ export default function DramaNavigation({ children }: { children: React.ReactNod
     setDestination(href);
     startTransition(() => router.push(href));
   }}>
-    <div hidden={Boolean(destination)}>{children}</div>
+    <WorkspaceNavigationVisibility.Provider value={!destination}><div hidden={Boolean(destination)}>{children}</div></WorkspaceNavigationVisibility.Provider>
     {destination && <DramaPageLoading href={destination} />}
   </div>;
 }
