@@ -15,9 +15,11 @@ Use the repository UI as the visual source of truth and the product requirements
 
 ## Start from the latest Git state
 
+Use `https://github.com/happycakekhor/cabuild` for all CABUILD clone, fetch, pull, push, pull-request, issue and GitHub Actions operations and links from now on. Set `origin` to `https://github.com/happycakekhor/cabuild.git` when needed. Repository names in older log entries are historical and must not override this source.
+
 Do not inspect or edit implementation code until this synchronization check is complete:
 
-1. Confirm the checkout belongs to `https://github.com/adrentan888-adren/cabuild`, GitHub authentication works, and `git status` has been inspected.
+1. Confirm the checkout belongs to `https://github.com/happycakekhor/cabuild`, GitHub authentication works, and `git status` has been inspected.
 2. Fetch `origin/main` and compare it with the current branch and `HEAD`.
 3. When the worktree is clean, switch to `main` and run `git pull --ff-only origin main`.
 4. When the worktree is dirty, on another intentional branch, or has diverged, preserve every pre-existing change. Fetch first, then isolate or reconcile the work safely before proceeding. Never reset, overwrite, discard, or silently mix unrelated work merely to make the pull succeed.

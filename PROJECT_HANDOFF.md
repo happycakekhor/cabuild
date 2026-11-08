@@ -2,6 +2,12 @@
 
 Last updated: 2026-11-08
 
+## Canonical GitHub repository
+
+Use `https://github.com/happycakekhor/cabuild` for all CABUILD work from now on: clone, fetch, pull, push, pull requests, issues and GitHub Actions. The local `origin` is `https://github.com/happycakekhor/cabuild.git`, and the source branch is `main`. This instruction supersedes repository names recorded in historical entries below. Both CABUILD skills and the persistent project log use this canonical source.
+
+The GitHub remote change does not itself update Google Cloud's workload identity trust. The latest visual release was pushed, but its workflow stopped at federation authentication; deployment must be verified separately from GitHub synchronization.
+
 ## 2026-11-08 — Desktop workspace and UI/UX workflow
 
 - Approved HTML design applied to the real website: a neutral persistent left sidebar on desktop, green Content Creator and purple Drama Studio accordion groups (one open at a time), separate Create Content navigation, account/settings access, and an accessible drawer at widths up to 1000px. Horizontal workspace rails are removed from active routes.
@@ -21,7 +27,7 @@ ContentAgent Social is a local Next.js prototype for research, content planning,
 - App URL: `http://localhost:3100`
 
 ## GitHub
-- Private repo: `https://github.com/adrentan888-adren/cabuild`
+- Private repo: `https://github.com/happycakekhor/cabuild`
 - Branch: `main`
 - Current deployment commit pushed: `0477adc Prepare ContentAgent for GCP deployment`
 - CI/CD path: repo now includes `Dockerfile`, `.dockerignore`, and `cloudbuild.yaml` so GCP can deploy from GitHub via a Cloud Build trigger. Once that trigger is connected, future deploys should only require `git push` to `main`.
@@ -142,7 +148,7 @@ Demo web app login:
 
 ## GCP Deployment Access
 - Preferred deployment target: Cloud Run + Artifact Registry + Secret Manager.
-- Preferred ongoing deploy path: Cloud Build trigger connected to GitHub `adrentan888-adren/cabuild`, branch `main`, using `cloudbuild.yaml`. This avoids manual `gcloud run deploy` after each code push.
+- Preferred ongoing deploy path: GitHub Actions in `happycakekhor/cabuild`, branch `main`, using `.github/workflows/deploy-cloud-run.yml`. The retained `cloudbuild.yaml` supports the earlier Cloud Build setup; verify any external trigger separately before using it.
 - Active keyless GitHub deploy path: Workload Identity pool `github-contentagent`, provider `github-cabuild`, service account `github-cloud-run-deployer@content-agent-2-499616.iam.gserviceaccount.com`. GitHub Actions deploys on push to `main`.
 - Production persistence needs Cloud SQL/Postgres or another managed database; current local JSON storage is not production-safe on Cloud Run.
 - If temporary operator access is needed, create a dedicated deploy service account and place its JSON key in an ignored local file such as `.gcp-deploy-key.local.json`; do not paste raw keys into chat or commit them.
