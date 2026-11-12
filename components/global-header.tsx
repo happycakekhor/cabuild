@@ -201,7 +201,7 @@ export default function GlobalHeader({
 
   return (
     <>
-    <WorkspaceSidebar activeMode={activeMode} activePage={activePage} account={account} workspaceName={summary?.workspace.name} frontendBaseUrl={frontendBaseUrl} onHomeNavigate={onHomeNavigate} onNormalNavigate={onNormalNavigate} mobileOpen={mobileOpen} onClose={closeSidebar} />
+    <WorkspaceSidebar activeMode={activeMode} activePage={activePage} account={account} frontendBaseUrl={frontendBaseUrl} onHomeNavigate={onHomeNavigate} onNormalNavigate={onNormalNavigate} mobileOpen={mobileOpen} onClose={closeSidebar} />
     <div className="global-header" ref={headerRef}>
       <div className="global-header-inner">
         <div className="desktop-topbar-title">

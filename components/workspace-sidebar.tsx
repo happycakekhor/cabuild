@@ -3,17 +3,16 @@
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { createContext, useContext, useEffect, useId, useRef, useState } from "react";
-import { Bug, ChevronRight, Clapperboard, Home, Settings, Sparkles, X } from "lucide-react";
+import { Bug, ChevronRight, Clapperboard, Settings, Sparkles, X } from "lucide-react";
 import { dramaPages, normalPages, type HeaderWorkspaceMode } from "./workspace-pages";
 
 // Portals are outside hidden route containers; loading routes explicitly hide their old sidebar.
 export const WorkspaceNavigationVisibility = createContext(true);
 
-export default function WorkspaceSidebar({ activeMode, activePage, account, workspaceName, frontendBaseUrl = "", onHomeNavigate, onNormalNavigate, mobileOpen, onClose }: {
+export default function WorkspaceSidebar({ activeMode, activePage, account, frontendBaseUrl = "", onHomeNavigate, onNormalNavigate, mobileOpen, onClose }: {
   activeMode: HeaderWorkspaceMode;
   activePage?: string;
   account?: { name: string; role: string };
-  workspaceName?: string;
   frontendBaseUrl?: string;
   onHomeNavigate?: () => void;
   onNormalNavigate?: (page: string) => void;
@@ -69,11 +68,9 @@ export default function WorkspaceSidebar({ activeMode, activePage, account, work
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }}>
-      <Link href={`${frontendBaseUrl}/`} className="desktop-brand" aria-label="Content Agent home" onClick={homeClick}><span className="desktop-brand-mark"><Sparkles size={19} /></span><span><b>CABUILD</b><small>CONTENT WORKSPACE</small></span></Link>
+      <Link href={`${frontendBaseUrl}/`} className="desktop-brand" aria-label="CABUILD Overview" aria-current={home ? "page" : undefined} onClick={homeClick}><span className="desktop-brand-mark"><Sparkles size={19} /></span><span><b>CABUILD</b><small>CONTENT WORKSPACE</small></span></Link>
       <button ref={closeRef} className="desktop-nav-close" type="button" aria-label="Close navigation" onClick={onClose}><X size={19} /></button>
-      <div className="desktop-workspace"><span className="desktop-avatar">CA</span><span><b>{workspaceName || "My workspace"}</b><small>Your creative workspace</small></span></div>
       <nav className="desktop-navigation" aria-label="Main navigation">
-        <Link href={`${frontendBaseUrl}/`} className={`desktop-nav-item ${home ? "active" : ""}`} aria-current={home ? "page" : undefined} onClick={homeClick}><Home size={17} /><span>Overview</span></Link>
         {(["normal", "drama"] as const).map(mode => {
           const isOpen = expanded === mode, Icon = mode === "normal" ? Sparkles : Clapperboard;
           return <section className={`desktop-nav-section ${mode}`} key={mode}>
