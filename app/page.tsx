@@ -40,6 +40,7 @@ import {
   Wand2
 } from "lucide-react";
 import PageIntro from "@/components/page-intro";
+import CreatorPageHeader from "@/components/creator-page-header";
 import SettingsPanel from "@/components/settings-panel";
 import SocialAuditPanel from "@/components/social-audit-panel";
 import AnalyticsPanel from "@/components/analytics-panel";
@@ -58,6 +59,7 @@ import AutomationResearchEditor from "@/components/automation-research-editor";
 import AutomationSelect from "@/components/automation-select";
 import CreationAssets from "@/components/creation-assets";
 import PersonaPreview from "@/components/persona-preview";
+import PersonaMark from "@/components/persona-mark";
 import { browserHistoryIndex, useLeaveWarning } from "@/lib/use-leave-warning";
 import { subscribeHistoryGuard } from "@/components/history-guard";
 import { notifyCreditUsage } from "@/lib/credit-refresh";
@@ -635,13 +637,8 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
   };
   return (
     <div className="persona-page">
-      <div className="drift-banner">
-        <div><b>Persona setup</b> - Store one active founder profile. Save applies your edits to the current profile.</div>
-        <span className="badge">Single active profile</span>
-      </div>
-
-      <PageIntro title="Persona" description="Your voice, audience and brand references, ready for every creation." art="identity"><span className="last-upd">{data.personaProfile.updatedAt ? `Updated ${new Date(data.personaProfile.updatedAt).toLocaleString()}` : "Not saved yet"}</span>{mode === "preview" && <button id="edit-persona" type="button" className="primary" onClick={() => setMode("edit")}><Pencil size={16} />Edit persona</button>}
-      </PageIntro>
+      <CreatorPageHeader title="Persona" art="identity"><span className="last-upd">{data.personaProfile.updatedAt ? `Updated ${new Date(data.personaProfile.updatedAt).toLocaleString()}` : "Not saved yet"}</span>{mode === "preview" && <button id="edit-persona" type="button" className="primary" onClick={() => setMode("edit")}><Pencil size={16} />Edit persona</button>}
+      </CreatorPageHeader>
 
       {mode === "edit" && <p className="persona-edit-notice" role="status"><Pencil size={17} />Editing persona · Save to apply your changes, or cancel to keep your saved profile.</p>}
       <section className="persona-summary">
@@ -673,10 +670,10 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
 
         <section className="persona-card">
           <div className="persona-fields">
-            <div className="autofill-banner"><span className="dot" /><span>Use the few fields below as the default prompt persona. Public URLs can auto-fill them when needed.</span><button id="persona-autofill-trigger" type="button" onClick={() => { setAutofillError(""); setShowAutofill(true); }}>Auto-fill</button></div>
+            <div className="autofill-banner"><span className="dot" /><span>Import from public profiles</span><button id="persona-autofill-trigger" type="button" onClick={() => { setAutofillError(""); setShowAutofill(true); }}>Auto-fill</button></div>
 
             <div className="persona-advanced">
-              <h2 className="persona-section-title">Core profile</h2><p className="persona-section-description">Introduce yourself and the business behind your content.</p>
+              <h2 className="persona-section-title"><span className="persona-section-icon"><UserRound size={22} aria-hidden="true" /></span>Core profile</h2>
               <div className="grid two">
                 <label>Display name<input name="displayName" defaultValue={persona.displayName} placeholder="Sean C" /></label>
                 <label>Role<input name="role" defaultValue={persona.role} placeholder="Founder / CEO" /></label>
@@ -686,7 +683,7 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
             </div>
 
             <div className="persona-advanced">
-              <h2 className="persona-section-title">Audience and voice</h2><p className="persona-section-description">Define who you speak to and how your content should sound.</p>
+              <h2 className="persona-section-title"><span className="persona-section-icon"><Megaphone size={22} aria-hidden="true" /></span>Audience and voice</h2>
               <label>Primary audience<input name="primaryAudience" defaultValue={persona.primaryAudience} placeholder="SME owners and operators in SEA" /></label>
               <label>Audience insight<textarea name="audienceInsight" defaultValue={persona.audienceInsight} placeholder="They want automation wins, but worry about cost, complexity, and disruption." /></label>
               <div className="grid two">
@@ -697,7 +694,7 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
             </div>
 
             <div className="persona-advanced">
-              <h2 className="persona-section-title">Reusable media references</h2><p className="persona-section-description">Keep your brand and personal references ready for your next creation.</p>
+              <h2 className="persona-section-title"><span className="persona-section-icon"><ImageIcon size={22} aria-hidden="true" /></span>Reusable media references</h2>
               <p className="muted">These saved assets can be selected later in Create Content and Automation. Product photos can have multiple entries; logo, avatar, and audio keep one default each.</p>
               <PersonaMediaLibrary assets={mediaAssets} onChange={assets => { setMediaAssets(assets); onEditingChange(true); }} />
             </div>
@@ -871,21 +868,21 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
   return (
     <div className="research-page">
       {sourcePreview && <SourceMediaPreviewPanel source={sourcePreview} onClose={() => setSourcePreview(null)} />}
-      <PageIntro title="Research" description="Revisit your saved searches or discover the next idea for your content." art="research">
+      <CreatorPageHeader title="Research" art="research">
         <div className="research-navigation">
           {researchView !== "history" && <button onClick={() => { setActiveScanId(null); setResearchView("history"); }}>Research history</button>}
           {researchView !== "search" && <button className="primary" onClick={newSearch} disabled={!!pendingScan}><Search size={16} />Search</button>}
         </div>
-      </PageIntro>
+      </CreatorPageHeader>
       {researchView === "history" && <section className="research-card research-history">
-        <div className="research-head"><div><h2>Research history</h2><p>Open a search to see its original query, filters and saved results.</p></div><button onClick={() => void refresh()}><RefreshCcw size={16} />Refresh history</button></div>
+        <div className="research-head"><div><h2 className="creator-section-title"><Clock3 size={22} aria-hidden="true" />Research history</h2></div><button onClick={() => void refresh()}><RefreshCcw size={16} />Refresh history</button></div>
         <div className="research-history-list">
           {[...historyScans].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(scan => <button key={scan.id} className="research-history-entry" onClick={() => openScan(scan.id)}>
             <span className="history-entry-icon"><Search size={20} /></span>
             <span className="history-entry-main"><b>{scanLabel(scan)}</b><span>{scan.query || scan.url.startsWith("keyword:") ? "Keyword search" : "URL search"} · {scan.dimensions?.actorSources?.join(", ") || scan.platform} · {new Date(scan.createdAt).toLocaleString()}</span><small>{scan.resultIds.length} saved results · Minimum {compact(scan.minViews)} views</small></span>
             {scan.status === "running" && <span className="history-entry-status running">Searching</span>}<ArrowRight size={18} />
           </button>)}
-          {!historyScans.length && <div className="empty-state"><h3>Your research starts here</h3><p>Search by URL or keywords. Your searches and results will appear here.</p><button className="primary" onClick={newSearch}>Start a search</button></div>}
+          {!historyScans.length && <div className="empty-state"><Search size={32} aria-hidden="true" /><h3>No saved searches</h3><button className="primary" onClick={newSearch}>Start a search</button></div>}
         </div>
       </section>}
       {researchView === "results" && activeScan && <section className="research-card saved-search-summary">
@@ -905,8 +902,8 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
 
       {researchView === "search" && <section className={`research-card ${activeScanStatus ? "loading" : ""}`}>
         <div className="research-mode">
-          <button className={searchMode === "url" ? "on" : ""} onClick={() => setSearchMode("url")}><Radar size={14} />Search by URL</button>
-          <button className={searchMode === "keywords" ? "on" : ""} onClick={() => setSearchMode("keywords")}><Search size={14} />Search by keywords</button>
+          <button aria-pressed={searchMode === "url"} className={searchMode === "url" ? "on" : ""} onClick={() => setSearchMode("url")}><Radar size={14} />Search by URL</button>
+          <button aria-pressed={searchMode === "keywords"} className={searchMode === "keywords" ? "on" : ""} onClick={() => setSearchMode("keywords")}><Search size={14} />Search by keywords</button>
         </div>
         {searchMode === "url" ? (
           <form onSubmit={(event) => { event.preventDefault(); if (!activeScanStatus) void scanUrl(new FormData(event.currentTarget)); }} className="research-form">
@@ -958,9 +955,9 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
               <ActorSourceSelector selected={actorSource} onSelect={setActorSource} />
               <ContentTypeSelector selected={contentType} onSelect={setContentType} items={availableContentTypes} platform={selectedActor?.label || "Instagram"} />
               <div className="research-filter-summary">
-                <b>Apify query scope</b>
+                <b>Search scope</b>
                 <span>Platform: {selectedActor?.label || "Instagram"} · Type: {selectedContentType?.label || "All types"} · Upload date: {uploadDate ? uploadDate.replace("-", " ") : "Any time"}</span>
-                <small>Native Apify filters are used where available; otherwise results are classified and filtered after scraping. Workspace niche is not injected.</small>
+
               </div>
             </div>
           </form>
@@ -1025,8 +1022,8 @@ function ActorSourceSelector({ selected, onSelect }: { selected: string; onSelec
       <b>Platform</b>
       <div>
         {researchActors.map((item) => (
-          <button type="button" key={item.id} className={selected === item.id ? "on" : ""} onClick={() => onSelect(item.id)}>
-            <span><input type="radio" checked={selected === item.id} readOnly tabIndex={-1} />{item.label}</span>
+          <button type="button" key={item.id} aria-pressed={selected === item.id} className={selected === item.id ? "on" : ""} onClick={() => onSelect(item.id)}>
+            <span><PlatformIcon platform={item.label} />{item.label}</span>
           </button>
         ))}
       </div>
@@ -1042,7 +1039,7 @@ function ContentTypeSelector({ selected, onSelect, items, platform }: { selected
       <div>
         {items.map((item) => (
           <button type="button" key={item.id || "all"} className={selected === item.id ? "on" : ""} onClick={() => onSelect(item.id)}>
-            <span><input type="radio" checked={selected === item.id} readOnly tabIndex={-1} />{item.label}</span>
+            <span><PlatformIcon platform={item.label} />{item.label}</span>
             <small>{item.description}</small>
           </button>
         ))}
@@ -1661,27 +1658,27 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
     <form key={formVersion} onSubmit={(event) => { event.preventDefault(); void submit(new FormData(event.currentTarget)); }} className="generation-form create-generation-form">
       <fieldset className="creation-fields" disabled={busy || aiGenerating}>
       <section className="create-card creation-persona">
-        <h2>Choose a persona</h2><p className="muted">Select your saved voice and references, or create without a persona.</p>
+        <h2 className="creator-section-title"><UserRound size={22} aria-hidden="true" />Persona</h2>
         <div className="persona-choice-grid">
-          <button type="button" aria-pressed={usePersona} className={usePersona ? "on" : ""} onClick={() => { if (!usePersona) setSelectedPersonaAssetIds(personaAssets.filter(asset => !assetRefs.some(upload => upload.role === asset.role)).map(asset => asset.id)); setUsePersona(true); }}><UserRound size={22} /><span><b>{persona?.displayName || "Saved persona"}</b><small>{[persona?.role, persona?.company].filter(Boolean).join(" · ") || "Use saved voice and audience"}</small></span></button>
-          <button type="button" aria-pressed={!usePersona} className={!usePersona ? "on" : ""} onClick={() => { setUsePersona(false); setSelectedPersonaAssetIds([]); }}><Sparkles size={22} /><span><b>No persona</b><small>Use only your brief and chosen uploads</small></span></button>
+          <button type="button" aria-pressed={usePersona} className={usePersona ? "on" : ""} onClick={() => { if (!usePersona) setSelectedPersonaAssetIds(personaAssets.filter(asset => !assetRefs.some(upload => upload.role === asset.role)).map(asset => asset.id)); setUsePersona(true); }}><PersonaMark persona={persona} /><span><b>{persona?.displayName || "Saved persona"}</b><small>{[persona?.role, persona?.company].filter(Boolean).join(" · ") || "Saved profile"}</small></span></button>
+          <button type="button" aria-pressed={!usePersona} className={!usePersona ? "on" : ""} onClick={() => { setUsePersona(false); setSelectedPersonaAssetIds([]); }}><Sparkles size={22} /><span><b>No persona</b><small>Brief and uploads only</small></span></button>
         </div>
         {!usePersona && <p className="muted">Saved persona context and references will not be added. Review any text already in your brief before generating.</p>}
       </section>
       <section className="create-card">
         <div className="optional-brief-heading"><Sparkles size={22} /><h2>Generate Brief</h2><span className="badge">Optional</span></div>
-        <div className="brief-preview">
+        {activeInitial.sourceLabel !== "Direct generation" && <div className="brief-preview">
           <span>{activeInitial.sourceLabel}</span>
           <b>{activeInitial.sourceTitle}</b>
           <p>{activeInitial.sourceDescription}</p>
-        </div>
+        </div>}
         {onUsePlan && <div className="source-actions"><button type="button" className="linkish secondary-plan-link" onClick={onUsePlan}>Load from Content Plan</button></div>}
-        <p className="step-helper">Use AI to prepare a brief, or skip this and write your generation prompt directly below.</p>
+
         {allowAiAssist && (
           <div className="ai-plan-box compact">
             <div className="ai-plan-inner">
-              <label>Tell me in a sentence or few, then I will fill the fields below.
-                <textarea name="idea" disabled={aiGenerating} value={aiIdea} onChange={(event) => setAiIdea(event.target.value)} placeholder="Example: Create a 9:16 product demo video for busy SME founders about invoice follow-up automation." />
+              <label>Your idea
+                <textarea name="idea" disabled={aiGenerating} value={aiIdea} onChange={(event) => setAiIdea(event.target.value)} placeholder="e.g. A short product demo for small business owners" />
               </label>
               {aiError && <div role="alert" className="provider-error">{aiError}</div>}
               <div className="row-actions">
@@ -1694,12 +1691,12 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
       </section>
 
       <section className="create-card">
-        <div className="step-label">Choose format, model, and references</div>
+        <div className="step-label"><SlidersHorizontal size={22} aria-hidden="true" />Format & settings</div>
         <div className="creation-platform-row"><ChoiceButtons label="Primary platform" name="platform" value={platform} options={Array.from(new Set([...platforms, "YouTube"])).map(value => ({value,label:value,icon:<PlatformIcon platform={value} />}))} onChange={value => setPlatform(value as Platform)} /></div>
         <div className="create-type-grid">
-          <button type="button" aria-pressed={kind === "video"} className={kind === "video" ? "on" : ""} onClick={() => changeKind("video")}><Film size={23} /><b>Video</b><span>TikTok, Reels, Shorts</span></button>
-          <button type="button" aria-pressed={kind === "image"} className={kind === "image" ? "on" : ""} onClick={() => changeKind("image")}><ImageIcon size={23} /><b>Image</b><span>Instagram, LinkedIn, Facebook</span></button>
-          <button type="button" aria-pressed={kind === "text"} className={kind === "text" ? "on" : ""} onClick={() => changeKind("text")}><FileText size={23} /><b>Text post</b><span>LinkedIn, X, Threads</span></button>
+          <button type="button" aria-pressed={kind === "video"} className={kind === "video" ? "on" : ""} onClick={() => changeKind("video")}><Film size={23} /><b>Video</b></button>
+          <button type="button" aria-pressed={kind === "image"} className={kind === "image" ? "on" : ""} onClick={() => changeKind("image")}><ImageIcon size={23} /><b>Image</b></button>
+          <button type="button" aria-pressed={kind === "text"} className={kind === "text" ? "on" : ""} onClick={() => changeKind("text")}><FileText size={23} /><b>Text post</b></button>
         </div>
         <div className="plat-row">
           {placementsForKind(kind).map((label) => <span className="pc on" key={label}><span className="pd" />{label}</span>)}
@@ -1735,7 +1732,7 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
 
 
       <section className="create-card">
-        <div className="step-label">Your content</div>
+        <div className="step-label"><Pencil size={22} aria-hidden="true" />Your content</div>
         <label>Generation prompt<textarea aria-label="Generation prompt" required name="prompt" defaultValue={activeInitial.prompt} /></label>
         <label>Caption<textarea name="caption" defaultValue={activeInitial.caption} /></label>
         <label>Hashtags<input name="hashtags" defaultValue={activeInitial.hashtags} /></label>
@@ -2068,8 +2065,8 @@ function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, compo
       {previewAsset?.assetUrl && <AssetPreviewPanel asset={previewAsset} onClose={() => setPreviewAsset(null)} />}
 
       {infoItem && <ContentInfo item={infoItem} asset={data.assets.find(asset => asset.id === infoItem.assetId)} onClose={() => setInfoItem(null)} />}
-      <PageIntro title={composer ? "Create Content" : "My Contents"} description={composer ? "Choose your direction, write your prompt, and generate." : "Create, review and download your Content Creator outputs."} art="library">{composer ? <button type="button" className="primary" onClick={onLibrary}><ArrowLeft size={17} />My Contents</button> : <button type="button" className="primary" onClick={onCreate}><Plus size={17} />Create Content</button>}
-      </PageIntro>
+      <CreatorPageHeader title={composer ? "Create Content" : "My Contents"} art="library">{composer ? <button type="button" className="primary" onClick={onLibrary}><ArrowLeft size={17} />My Contents</button> : <button type="button" className="primary" onClick={onCreate}><Plus size={17} />Create Content</button>}
+      </CreatorPageHeader>
       {generationNotice && <div className="generation-notice">{generationNotice}</div>}
       {composer}
       {!composer && <section className="content-library-filters" aria-label="Filter and sort contents">
@@ -2187,7 +2184,7 @@ function LogPanel({ data }: { data: AppData }) {
   const logs = (data.debugLogs || []).filter((item) => (provider === "all" || item.provider === provider) && (status === "all" || item.status === status));
   return (
     <div className="log-page">
-      <PageIntro title="Logs" description="Follow each action from request to result, with provider details when you need them." art="text"><div className="log-filters">
+      <CreatorPageHeader title="Logs" art="text"><div className="log-filters">
           <label>Provider<select value={provider} onChange={(event) => setProvider(event.target.value)}>
             <option value="all">All providers</option>
             {providers.map((item) => <option key={item} value={item}>{item}</option>)}
@@ -2200,7 +2197,7 @@ function LogPanel({ data }: { data: AppData }) {
             <option value="info">Info</option>
           </select></label>
         </div>
-      </PageIntro>
+      </CreatorPageHeader>
       <div className="log-list">
         {logs.map((item) => (
           <article className="log-row" key={item.id}>
@@ -2367,7 +2364,7 @@ function AutomationPanel({ data, run, refresh }: { data: AppData; run: (a: strin
   if(pageMode==="list" || pageMode==="detail") return <AutomationLibrary data={data} selected={pageMode==="detail"&&selected ? (automationMode==="sources"?{kind:"sources",record:selected as AutomationSourceWatcher}:{kind:"scheduled",record:selected as AutomationRule}):undefined} busy={busy} kind={automationMode} onKindChange={kind=>changePage("list",kind)} onCreate={()=>begin(automationMode)} onBack={()=>changePage("list")} onView={entry=>changePage("detail",entry.kind,entry.record.id)} onEdit={entry=>begin(entry.kind,entry.record.id)} onAction={execute}/>;
   return (
     <div className="automation-page automation-editor" ref={formHeading} tabIndex={-1}>
-      <PageIntro title={pageMode==="edit"?"Edit automation":"Create automation"} description="Choose what to create, when to run and how you want to review it." art="operations"><button type="button" disabled={busy} onClick={()=>changePage(selectedId?"detail":"list",automationMode,selectedId)}><ArrowLeft size={17}/>Automations</button></PageIntro>
+      <CreatorPageHeader title={pageMode==="edit"?"Edit automation":"Create automation"} art="operations"><button type="button" disabled={busy} onClick={()=>changePage(selectedId?"detail":"list",automationMode,selectedId)}><ArrowLeft size={17}/>Automations</button></CreatorPageHeader>
       {pageMode==="create"&&<AutomationTypeTabs value={automationMode} onChange={kind=>begin(kind)} disabled={busy}/>}
       {formError&&<p className="provider-error" role="alert">{formError}</p>}
 
@@ -2388,7 +2385,7 @@ function AutomationPanel({ data, run, refresh }: { data: AppData; run: (a: strin
             } catch(error) { setFormError(error instanceof Error ? error.message : "Could not save. Your edits are still here."); } finally {submitting.current=false;setBusy(false);}
           }}>
             <AutomationScheduleProvider initial={sourceEditing}>
-            <section className="create-card"><div className="optional-brief-heading"><Radar size={22}/><h2>Sources to monitor</h2></div><p className="step-helper">Choose the accounts and instructions this automation should follow.</p>
+            <section className="create-card"><div className="optional-brief-heading"><Radar size={22}/><h2>Sources to monitor</h2></div>
             <div className="modal-grid">
               <label>Automation name<input name="name" placeholder="Competitor best-post monitor" required defaultValue={sourceEditing?.name || ""} /></label>
               <div className="automation-field"><span>Ranking</span><AutomationSelect label="Ranking" name="rankingMode" defaultValue={sourceEditing?.rankingMode || "balanced"}>
@@ -2402,7 +2399,7 @@ function AutomationPanel({ data, run, refresh }: { data: AppData; run: (a: strin
             <label>Minimum views<input name="minViews" type="number" min="0" defaultValue={sourceEditing?.minViews ?? "0"}/></label>
             <label>Creation instruction<textarea name="instruction" placeholder="Describe how to recreate the selected source content for your brand." defaultValue={sourceEditing?.instruction || ""}/></label>
             </section>
-            <section className="create-card"><div className="optional-brief-heading"><Film size={22}/><h2>Choose format, model, and references</h2></div>
+            <section className="create-card"><div className="optional-brief-heading"><Film size={22}/><h2>Format & settings</h2></div>
             <AutomationFormatControls contentType={sourceContentType} formats={sourceContentTypes} onTypeChange={value=>changeSourceContentType(value as AutomationSourceWatcher["contentType"])} model={sourceModel} models={sourceModelOptions} onModelChange={setSourceModel} aspectRatio={sourceAspectRatio} ratios={sourceDimensionOptions} onRatioChange={setSourceAspectRatio} duration={sourceEditing?.duration}/>
             <div className="creation-option-group"><div className="clbl"><ImageIcon size={20}/>Assets</div><CreationAssets personaAssets={data.personaProfile.mediaAssets || []} selectedIds={sourceSelectedPersonaAssetIds} uploads={sourceUploadRefs} retainedAssets={savedReferences} usePersona video={automationKindFromContentType(sourceContentType) === "video" || sourceContentType === "auto"} onClear={role=>{setSavedReferences(current=>current.filter(asset=>asset.role!==role));setSourceSelectedPersonaAssetIds(current=>current.filter(id=>!(data.personaProfile.mediaAssets||[]).some(asset=>asset.id===id&&asset.role===role)));updateSourceUploadRef(role,null);}} onSelect={(role,ids)=>{setSavedReferences(current=>current.filter(asset=>asset.role!==role));setSourceSelectedPersonaAssetIds(current=>[...current.filter(id=>!(data.personaProfile.mediaAssets||[]).some(asset=>asset.id===id&&asset.role===role)),...ids]);updateSourceUploadRef(role,null);}} onUpload={(role,file)=>{setSavedReferences(current=>current.filter(asset=>asset.role!==role));setSourceSelectedPersonaAssetIds(current=>current.filter(id=>!(data.personaProfile.mediaAssets||[]).some(asset=>asset.id===id&&asset.role===role)));updateSourceUploadRef(role,file);}}/></div>
             </section>
@@ -2439,7 +2436,7 @@ function AutomationPanel({ data, run, refresh }: { data: AppData; run: (a: strin
             } catch(error) { setFormError(error instanceof Error ? error.message : "Could not save. Your edits are still here."); } finally {submitting.current=false;setBusy(false);}
           }}>
             <AutomationScheduleProvider initial={ruleEditing}>
-            <section className="create-card"><div className="optional-brief-heading"><Sparkles size={22}/><h2>What should the agent create?</h2></div><p className="step-helper">Give your recurring content a clear purpose and instruction.</p>
+            <section className="create-card"><div className="optional-brief-heading"><Sparkles size={22}/><h2>What should the agent create?</h2></div>
             <div className="modal-grid">
               <label>Automation name<input name="name" placeholder="Daily Malay loan ads" required defaultValue={ruleEditing?.name || ""} /></label>
               <div className="automation-field"><span>Goal</span><AutomationSelect label="Goal" name="goal" defaultValue={ruleEditing?.goal || "leads"}>
@@ -2451,7 +2448,7 @@ function AutomationPanel({ data, run, refresh }: { data: AppData; run: (a: strin
               </AutomationSelect></div>
             </div>
             <label>Main instruction<textarea name="instruction" required placeholder="Create Malay FB ads for loan enquiries with a strong hook, compliance-safe USP, and clear CTA." defaultValue={ruleEditing?.instruction || ""} /></label>
-            </section><section className="create-card"><div className="optional-brief-heading"><Film size={22}/><h2>Choose format, model, and references</h2></div>
+            </section><section className="create-card"><div className="optional-brief-heading"><Film size={22}/><h2>Format & settings</h2></div>
             <div className="creation-platform-row automation-platform-row"><fieldset className="choice-buttons"><legend>Publishing platforms</legend><p className="step-helper">Choose one or more destinations for each run.</p><div>{platforms.map(platform=><button type="button" aria-pressed={scheduledPlatforms.includes(platform)} className={scheduledPlatforms.includes(platform)?"on":""} key={platform} onClick={()=>toggleScheduledPlatform(platform,!scheduledPlatforms.includes(platform))}><span className="choice-icon" aria-hidden="true"><PlatformIcon platform={platform}/></span>{platform}</button>)}</div>{scheduledPlatforms.map(platform=><input key={platform} type="hidden" name="platforms" value={platform}/>)}</fieldset></div>
             <AutomationFormatControls contentType={scheduledContentType} formats={contentTypes} onTypeChange={value=>changeScheduledContentType(value as AutomationRule["contentType"])} model={scheduledModel} models={scheduledModelOptions} onModelChange={setScheduledModel} aspectRatio={scheduledAspectRatio} ratios={scheduledDimensionOptions} onRatioChange={setScheduledAspectRatio} duration={ruleEditing?.duration}/>
             <div className="creation-option-group"><div className="clbl"><ImageIcon size={20}/>Assets</div><CreationAssets personaAssets={data.personaProfile.mediaAssets || []} selectedIds={scheduledSelectedPersonaAssetIds} uploads={scheduledUploadRefs} retainedAssets={savedReferences} usePersona video={automationKindFromContentType(scheduledContentType) === "video"} onClear={role=>{setSavedReferences(current=>current.filter(asset=>asset.role!==role));setScheduledSelectedPersonaAssetIds(current=>current.filter(id=>!(data.personaProfile.mediaAssets||[]).some(asset=>asset.id===id&&asset.role===role)));updateScheduledUploadRef(role,null);}} onSelect={(role,ids)=>{setSavedReferences(current=>current.filter(asset=>asset.role!==role));setScheduledSelectedPersonaAssetIds(current=>[...current.filter(id=>!(data.personaProfile.mediaAssets||[]).some(asset=>asset.id===id&&asset.role===role)),...ids]);updateScheduledUploadRef(role,null);}} onUpload={(role,file)=>{setSavedReferences(current=>current.filter(asset=>asset.role!==role));setScheduledSelectedPersonaAssetIds(current=>current.filter(id=>!(data.personaProfile.mediaAssets||[]).some(asset=>asset.id===id&&asset.role===role)));updateScheduledUploadRef(role,file);}}/></div>

@@ -48,7 +48,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
   await page.setViewportSize({width,height:1000});
   await page.goto(base+'/?view=persona');await page.locator('.persona-page').waitFor();await page.getByRole('button',{name:'Edit persona',exact:true}).click();
   assert.equal(await page.locator('.persona-section-title').count(),3);
-  assert(await page.locator('.persona-section-title').first().evaluate(e=>Number(getComputedStyle(e).fontWeight)>=700));
+  assert(await page.locator('.persona-section-title').first().evaluate(e=>e.tagName==='H2'&&Number(getComputedStyle(e).fontWeight)>=600),'Profile sections have semantic, visually emphasized headings');
   const sections=await page.locator('.persona-fields > .persona-advanced').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return{top:r.top,bottom:r.bottom}}));
   assert(sections.slice(1).every((s,i)=>s.top-sections[i].bottom>=20));
   await page.getByLabel('Display name',{exact:true}).fill('Unsaved name');

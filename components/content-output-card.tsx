@@ -1,5 +1,6 @@
 import { Download, Eye, FileText, Film, ImageIcon, Info } from "lucide-react";
 import type { Asset, PublishItem } from "@/lib/types";
+import PlatformIcon from "./platform-icon";
 
 export default function ContentOutputCard({ item, asset, onPreview, onInfo, onSource }: {
   item: PublishItem; asset?: Asset; onPreview: () => void; onInfo: () => void; onSource?: () => void;
@@ -15,7 +16,7 @@ export default function ContentOutputCard({ item, asset, onPreview, onInfo, onSo
       {url ? video ? <video src={url} muted preload="metadata" playsInline /> : <img src={url} alt={item.title} /> : <TypeIcon size={30} />}
       <span>{url ? `Preview ${type.toLowerCase()}` : item.status === "failed" ? "No media generated" : "Generating…"}</span>
     </button> : <div className="content-output-media text-output"><FileText size={32} /><span>Text post</span></div>}
-    <div className="content-output-heading"><h3>{item.title}</h3><span className={`status ${item.status}`}>{item.status === "done" ? "Done" : item.status}</span></div>
+    <div className="content-output-heading"><span className="creator-output-platform"><PlatformIcon platform={item.platform} />{item.platform}</span><h3>{item.title}</h3><span className={`status ${item.status}`}>{item.status === "done" ? "Done" : item.status}</span></div>
     <div className="content-output-description"><p>{item.caption || "No description added."}</p>{item.hashtags?.length ? <small>{item.hashtags.join(" ")}</small> : null}
       {item.status === "generating" && <small role="status">Generation continues in the background.</small>}
       {item.error && <p className="provider-error" role="alert">{item.error}</p>}
