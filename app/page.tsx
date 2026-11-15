@@ -68,6 +68,7 @@ import { contentCreatorQueue } from "@/lib/content-origin";
 import GlobalHeader from "@/components/global-header";
 import WelcomeHome from "@/components/welcome-home";
 import PageMotion from "@/components/page-motion";
+import ResearchMotion from "@/components/research-motion";
 import type { Asset, AutomationJob, AutomationRule, AutomationSourceRun, AutomationSourceWatcher, BrandKit, Brief, Competitor, CompetitorResult, Opportunity, Platform, PromptTemplates, PublishItem, SocialAudit, Workspace } from "@/lib/types";
 import type { PersonaMediaAsset, PersonaProfile } from "@/lib/types";
 import { appendPersonaContext, buildPersonaContext } from "@/lib/persona";
@@ -317,6 +318,8 @@ export default function Home() {
   const [integrations, setIntegrations] = useState<IntegrationData | null>(null);
   const [pendingGeneration, setPendingGeneration] = useState<PendingGeneration | null>(null);
   const [createSourceId, setCreateSourceId] = useState<string | null>(null);
+  const [composerMounted, setComposerMounted] = useState(false);
+  const [generationVersion, setGenerationVersion] = useState(0);
   const [loading, setLoading] = useState(true);
   const [personaEditing, setPersonaEditing] = useState(false);
   const [settingsEditing, setSettingsEditing] = useState(false);
@@ -327,12 +330,12 @@ export default function Home() {
   const approvedHistoryTarget = useRef<number | null>(null);
 
   const navigateScreen = useCallback(async (nextScreen: string, sourceId?: string) => {
-    const nextUrl = nextScreen === "home" ? "/" : `/?view=${encodeURIComponent(nextScreen)}${nextScreen === "create" && sourceId ? `&source=${encodeURIComponent(sourceId)}` : ""}`;
+    const nextUrl = nextScreen === "home" ? "/" : nextScreen === "create" ? `/?view=publish&compose=1${sourceId ? `&source=${encodeURIComponent(sourceId)}` : ""}` : `/?view=${encodeURIComponent(nextScreen)}`;
     if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== nextUrl) {
       if (!await confirmLeave()) return;
       window.history.pushState({ ...window.history.state, creatorIndex: ++historyIndex.current }, "", nextUrl);
     }
-    setCreateSourceId(nextScreen === "create" ? sourceId || null : null);
+    if (nextScreen === "create") { setCreateSourceId(sourceId || null); setComposerMounted(true); }
     setScreen(nextScreen);
     document.querySelector<HTMLElement>(".main")?.scrollTo({ top: 0, behavior: "auto" });
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -359,8 +362,17 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const requestedView = new URLSearchParams(window.location.search).get("view");
     const normalViews = new Set(["audit", "persona", "research", "create", "publish", "automation", "analyse", "logs", "settings", "account"]);
+    const applyLocation = () => {
+      const params = new URLSearchParams(window.location.search);
+      const requested = params.get("view");
+      const view = requested === "publish" && params.get("compose") === "1" ? "create" : requested;
+      if (view === "create") {
+        setCreateSourceId(params.get("source")); setComposerMounted(true);
+        if (requested === "create") { params.set("view", "publish"); params.set("compose", "1"); window.history.replaceState(window.history.state, "", `/?${params.toString()}`); }
+      }
+      setScreen(view && normalViews.has(view) ? view : "home");
+    };
     historyIndex.current = browserHistoryIndex() ?? window.history.state?.creatorIndex ?? 0;
     window.history.replaceState({ ...window.history.state, creatorIndex: historyIndex.current }, "");
     const syncView = (event: PopStateEvent) => {
@@ -389,12 +401,9 @@ export default function Home() {
       }
       approvedHistoryTarget.current = null;
       historyIndex.current = nextIndex;
-      const view = new URLSearchParams(window.location.search).get("view");
-      setCreateSourceId(view === "create" ? new URLSearchParams(window.location.search).get("source") : null);
-      setScreen(view && normalViews.has(view) ? view : "home");
+      applyLocation();
     };
-    setCreateSourceId(requestedView === "create" ? new URLSearchParams(window.location.search).get("source") : null);
-    if (requestedView && normalViews.has(requestedView)) setScreen(requestedView);
+    applyLocation();
     return subscribeHistoryGuard(syncView);
   }, [confirmLeave, shouldWarn]);
 
@@ -432,7 +441,7 @@ export default function Home() {
         <header className="topbar">
           <GlobalHeader
             activeMode={screen === "home" || screen === "account" || screen === "settings" ? null : "normal"}
-            activePage={screen}
+            activePage={screen === "create" ? "publish" : screen}
             initialAccount={data.user}
             initialWorkspaceCredits={data.workspace.credits}
             onBeforeLeave={confirmLeave}
@@ -442,7 +451,7 @@ export default function Home() {
 
         </header>
 
-        <PageMotion pageKey={screen}>
+        <PageMotion pageKey={screen === "create" ? "publish" : screen}>
         {screen === "home" ? (
           <section className="panel active">
             <HomePanel data={data} setScreen={navigateScreen} openDrama={() => router.push("/drama-studio?step=1")} />
@@ -453,7 +462,7 @@ export default function Home() {
               {screen === "audit" && <SocialAuditPanel data={data} run={run} onNavigate={navigateScreen} />}
               {screen === "persona" && <PersonaPanel data={data} run={run} onEditingChange={setPersonaEditing} />}
               {screen === "research" && <IntelligencePanel data={data} run={run} refresh={refresh} setDirectCreateInitial={(initial) => { void navigateScreen("create", initial.sourceResultId); }} />}
-              {(screen === "create" || screen === "publish") && <PublishPanel data={data} run={run} pendingGeneration={pendingGeneration} onCreate={() => navigateScreen("create")} onLibrary={() => navigateScreen("publish")} composer={screen === "create" ? <CreateContentPanel key={createSourceId || "direct"} sourceId={createSourceId} data={data} run={run} setScreen={navigateScreen} setPendingGeneration={setPendingGeneration} /> : undefined} />}
+              {(screen === "create" || screen === "publish") && <PublishPanel data={data} run={run} pendingGeneration={pendingGeneration} composing={screen === "create"} generationVersion={generationVersion} onCreate={() => navigateScreen("create", composerMounted ? createSourceId || undefined : undefined)} onLibrary={() => navigateScreen("publish")} composer={composerMounted ? <CreateContentPanel key={createSourceId || "direct"} sourceId={createSourceId} data={data} run={run} onClose={() => navigateScreen("publish")} onComplete={() => {setComposerMounted(false);setCreateSourceId(null);setGenerationVersion(version=>version+1);void navigateScreen("publish");}} setPendingGeneration={setPendingGeneration} /> : undefined} />}
               {screen === "drama" && <DramaWorkspacePanel src="/drama-studio" title="Drama Studio" refresh={refresh} />}
               {screen === "asset-library" && <DramaWorkspacePanel src="/drama-studio/assets" title="Asset Library" refresh={refresh} />}
               {screen === "automation" && <AutomationPanel data={data} run={run} refresh={refresh} />}
@@ -860,11 +869,10 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
   const historyScans = data.researchScans.filter(scan => scan.status !== "failed");
   const scanLabel = (scanItem: AppData["researchScans"][number]) => scanItem.query || (scanItem.url.startsWith("keyword:") ? scanItem.url.split("|")[0].replace("keyword:", "") : scanItem.url);
   return (
-    <div className="research-page">
+    <ResearchMotion viewKey={`${researchView}:${searchMode}:${activeScanId || ""}`}>
       {sourcePreview && <SourceMediaPreviewPanel source={sourcePreview} onClose={() => setSourcePreview(null)} />}
       <CreatorPageHeader title="Research" art="research">
         <div className="research-navigation">
-          {researchView !== "history" && <button onClick={() => { setActiveScanId(null); setResearchView("history"); }}>Research history</button>}
           {researchView !== "search" && <button className="primary" onClick={newSearch} disabled={!!pendingScan}><Search size={16} />Search</button>}
         </div>
       </CreatorPageHeader>
@@ -894,7 +902,7 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
         <Metric label="Top post" value={topResult ? compact(topResult.views) : "-"} />
       </div>}
 
-      {researchView === "search" && <section className={`research-card research-search-workspace ${activeScanStatus ? "loading" : ""}`}>
+      {researchView === "search" && <div className="research-search-layout"><section className={`research-card research-search-workspace ${activeScanStatus ? "loading" : ""}`}>
         <div className="research-mode">
           <button aria-pressed={searchMode === "url"} className={searchMode === "url" ? "on" : ""} onClick={() => setSearchMode("url")}><Radar size={14} />Search by URL</button>
           <button aria-pressed={searchMode === "keywords"} className={searchMode === "keywords" ? "on" : ""} onClick={() => setSearchMode("keywords")}><Search size={14} />Search by keywords</button>
@@ -957,8 +965,9 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
           </form>
         )}
         {activeScanStatus && <div className="scan-progress"><span />Search continues in the background.<b>{scanElapsed}s</b></div>}
-      </section>}
-      {researchView === "search" && historyScans.length > 0 && <section className="research-recent"><div className="research-head"><h2><Clock3 size={19}/>Recent searches</h2><button type="button" onClick={()=>setResearchView("history")}>View all<ArrowRight size={16}/></button></div><div>{[...historyScans].sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)).slice(0,4).map(scan=><button type="button" key={scan.id} onClick={()=>openScan(scan.id)}><PlatformIcon platform={scan.dimensions?.actorSources?.[0] || scan.platform}/><span><b>{scanLabel(scan)}</b><small>{scan.resultIds.length} saved results · {new Date(scan.createdAt).toLocaleDateString()}</small></span><ArrowRight size={16}/></button>)}</div></section>}
+      </section>
+      <aside className="research-recent" aria-label="Recent searches"><div className="research-head"><h2><Clock3 size={19}/>Recent searches</h2><button type="button" onClick={()=>{setActiveScanId(null);setResearchView("history");}}>View all<ArrowRight size={16}/></button></div><div className="research-recent-list">{[...historyScans].sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)).slice(0,4).map(scan=><button type="button" key={scan.id} onClick={()=>openScan(scan.id)}><PlatformIcon platform={scan.dimensions?.actorSources?.[0] || scan.platform}/><span><b>{scanLabel(scan)}</b><small>{scan.resultIds.length} saved results · {new Date(scan.createdAt).toLocaleDateString()}</small></span><ArrowRight size={16}/></button>)}{!historyScans.length && <p className="research-recent-empty">No recent searches yet.</p>}</div></aside>
+      </div>}
 
       {researchView === "results" && <section className={`research-card results-card ${activeScanStatus ? "loading" : ""}`} aria-busy={activeScanStatus ? "true" : "false"}>
         <div className="research-head">
@@ -1008,7 +1017,7 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
         </div>
       </section>}
 
-    </div>
+    </ResearchMotion>
   );
 }
 
@@ -1516,6 +1525,8 @@ function BriefPanel({ data, run, setScreen, pendingPlan, setPendingGeneration }:
 }
 
 function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, onCancel, onUsePlan, onStart, submitLabel = "Generate", busyLabel = "Sending to Publish", allowAiAssist = false }: { initial: CreateContentInitial; persona?: PersonaProfile; personaAssets?: PersonaMediaAsset[]; onSubmit: (payload: Record<string, unknown>) => Promise<void>; onCancel?: () => void; onUsePlan?: () => void; onStart?: (generation: PendingGeneration) => void; submitLabel?: string; busyLabel?: string; allowAiAssist?: boolean }) {
+  const initialKey = JSON.stringify([initial.sourceLabel, initial.sourceTitle, initial.sourceDescription, initial.prompt, initial.caption, initial.hashtags, initial.kind, initial.model, initial.duration, initial.aspectRatio, initial.platform]);
+  const appliedInitialKey = useRef(initialKey);
   const [activeInitial, setActiveInitial] = useState<CreateContentInitial>(initial);
   const [formVersion, setFormVersion] = useState(0);
   const [kind, setKind] = useState<GenerationKind>(initial.kind);
@@ -1523,7 +1534,7 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
   const [duration, setDuration] = useState(closestDuration(initial.duration || 8, durationOptionsForModel(initial.model || generationModels[initial.kind][0][0])));
   const [platform, setPlatform] = useState<Platform>(initial.platform || defaultPlatformForKind(initial.kind));
   const [usePersona, setUsePersona] = useState(true);
-  const [aspectRatio, setAspectRatio] = useState(initial.aspectRatio || "9:16");
+  const [aspectRatio, setAspectRatio] = useState(initial.aspectRatio || (initial.kind === "image" ? "4:5" : "9:16"));
   const [tone, setTone] = useState("Practical founder-led");
   const [length, setLength] = useState("Medium");
   const [variants, setVariants] = useState("1");
@@ -1552,8 +1563,12 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
     assetRefsRef.current = assetRefs;
   }, [assetRefs]);
   useEffect(() => {
+    // The state already contains the initial values. Preserve edits through mount
+    // effects and background refreshes that recreate an equivalent source object.
+    if (appliedInitialKey.current === initialKey) return;
+    appliedInitialKey.current = initialKey;
     resetFormFromInitial(initial);
-  }, [initial.sourceLabel, initial.sourceTitle, initial.sourceDescription, initial.prompt, initial.caption, initial.hashtags, initial.kind, initial.model, initial.duration, initial.aspectRatio, initial.platform]);
+  }, [initial, initialKey]);
   useEffect(() => {
     return () => {
       assetRefsRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
@@ -1819,7 +1834,7 @@ function GenerationModal({ brief, personaAssets, onClose, onStart, onSubmit }: {
   );
 }
 
-function ResearchContentComposer({ initial, persona, personaAssets, run, onClose, setScreen, setPendingGeneration }: { initial: CreateContentInitial; persona?: PersonaProfile; personaAssets: PersonaMediaAsset[]; run: (a: string, p?: Record<string, unknown>, m?: string) => Promise<any>; onClose: () => void; setScreen: (screen: string) => void; setPendingGeneration: (generation: PendingGeneration | null) => void }) {
+function ResearchContentComposer({ initial, persona, personaAssets, run, onClose, onComplete, setPendingGeneration }: { initial: CreateContentInitial; persona?: PersonaProfile; personaAssets: PersonaMediaAsset[]; run: (a: string, p?: Record<string, unknown>, m?: string) => Promise<any>; onClose: () => void; onComplete: () => void; setPendingGeneration: (generation: PendingGeneration | null) => void }) {
   const composerRef = useRef<HTMLDivElement>(null);
   const hasReviewed = useRef(false);
   const [promptReview, setPromptReview] = useState<{ videoPrompt: string } | null>(null);
@@ -1857,7 +1872,7 @@ function ResearchContentComposer({ initial, persona, personaAssets, run, onClose
       setSubmissionError("We could not queue this content. Your edits are still here; try again when ready.");
       return false;
     }
-    setScreen("publish");
+    onComplete();
     return true;
   };
   const prepareGeneration = async (payload: Record<string, unknown>) => {
@@ -1918,7 +1933,7 @@ function ResearchContentComposer({ initial, persona, personaAssets, run, onClose
   );
 }
 
-function CreateContentPanel({ sourceId, data, run, setScreen, setPendingGeneration }: { sourceId: string | null; data: AppData; run: (a: string, p?: Record<string, unknown>, m?: string) => Promise<any>; setScreen: (screen: string) => void; setPendingGeneration: (generation: PendingGeneration | null) => void }) {
+function CreateContentPanel({ sourceId, data, run, onClose, onComplete, setPendingGeneration }: { sourceId: string | null; data: AppData; run: (a: string, p?: Record<string, unknown>, m?: string) => Promise<any>; onClose: () => void; onComplete: () => void; setPendingGeneration: (generation: PendingGeneration | null) => void }) {
   const context = data.workspace.niche?.trim() || "your brand";
   const defaultInitial: CreateContentInitial = {
     sourceLabel: "Direct generation",
@@ -1937,12 +1952,12 @@ function CreateContentPanel({ sourceId, data, run, setScreen, setPendingGenerati
   const initial = source ? createInitialFromResearchResult(source, data.promptTemplates) : defaultInitial;
   return (
     <div className="create-page">
-      {source ? <ResearchContentComposer initial={initial} persona={data.personaProfile} personaAssets={data.personaProfile.mediaAssets || []} run={run} onClose={() => setScreen("publish")} setScreen={setScreen} setPendingGeneration={setPendingGeneration} /> : <CreateContentModule
+      {source ? <ResearchContentComposer initial={initial} persona={data.personaProfile} personaAssets={data.personaProfile.mediaAssets || []} run={run} onClose={onClose} onComplete={onComplete} setPendingGeneration={setPendingGeneration} /> : <CreateContentModule
         initial={initial}
         persona={data.personaProfile}
         personaAssets={data.personaProfile.mediaAssets || []}
         allowAiAssist
-        onCancel={() => setScreen("publish")}
+        onCancel={onClose}
         onSubmit={async (payload) => {
           const result = await run("generateDirectContent", {
             ...payload,
@@ -1955,7 +1970,7 @@ function CreateContentPanel({ sourceId, data, run, setScreen, setPendingGenerati
           }, "Generation queued in Publish");
           setPendingGeneration(null);
           if (!result) throw new Error("Could not queue content. Your edits are still here; please try again.");
-          setScreen("publish");
+          onComplete();
         }}
       />}
     </div>
@@ -1987,11 +2002,18 @@ function contentHistoryDay(item: PublishItem) {
   return Number.isFinite(time) ? new Date(time).toLocaleDateString(undefined, { year:"numeric", month:"long", day:"numeric" }) : "Date not recorded";
 }
 
-function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, composer }: { data: AppData; run: (a: string, p?: Record<string, unknown>, m?: string) => Promise<void>; pendingGeneration: PendingGeneration | null; onCreate: () => void; onLibrary: () => void; composer?: ReactNode }) {
+function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, composer, composing, generationVersion }: { composing: boolean; generationVersion: number; data: AppData; run: (a: string, p?: Record<string, unknown>, m?: string) => Promise<void>; pendingGeneration: PendingGeneration | null; onCreate: () => void; onLibrary: () => void; composer?: ReactNode }) {
+  const wasComposing = useRef(false);
+  useEffect(() => {
+    if (composing) document.querySelector<HTMLElement>("#content-editor h2")?.focus({preventScroll:true});
+    else if (wasComposing.current) document.getElementById("content-editor-toggle")?.focus({preventScroll:true});
+    wasComposing.current = composing;
+  }, [composing]);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sort, setSort] = useState("newest");
+  useEffect(() => { if (generationVersion) { setSearch("");setTypeFilter("all");setStatusFilter("all");setSort("newest"); } }, [generationVersion]);
   const [infoItem, setInfoItem] = useState<PublishItem | null>(null);
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
   const [sourcePreview, setSourcePreview] = useState<SourceMediaPreview | null>(null);
@@ -2067,11 +2089,11 @@ function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, compo
       {previewAsset?.assetUrl && <AssetPreviewPanel asset={previewAsset} onClose={() => setPreviewAsset(null)} />}
 
       {infoItem && <ContentInfo item={infoItem} asset={data.assets.find(asset => asset.id === infoItem.assetId)} onClose={() => setInfoItem(null)} />}
-      <CreatorPageHeader title={composer ? "Create Content" : "My Contents"} art="library">{composer ? <button type="button" className="primary" onClick={onLibrary}><ArrowLeft size={17} />My Contents</button> : <button type="button" className="primary" onClick={onCreate}><Plus size={17} />Create Content</button>}
+      <CreatorPageHeader title="My Contents" art="library"><button id="content-editor-toggle" type="button" className={composing ? "" : "primary"} aria-expanded={composing} aria-controls="content-editor" onClick={composing ? onLibrary : onCreate}>{composing ? <><ArrowUp size={17}/>Hide editor</> : <><Plus size={17}/>Create Content</>}</button>
       </CreatorPageHeader>
       {generationNotice && <div className="generation-notice">{generationNotice}</div>}
-      {composer}
-      {!composer && <section className="content-library-filters" aria-label="Filter and sort contents">
+      <section id="content-editor" className="integrated-content-editor" aria-label="Create Content" hidden={!composing}><div className="integrated-editor-heading"><h2 tabIndex={-1}><Sparkles size={21}/>Create Content</h2><button type="button" onClick={()=>{document.getElementById("content-library")?.focus({preventScroll:true});document.getElementById("content-library")?.scrollIntoView({block:"start",behavior:"auto"});}}><Clock3 size={16}/>View contents</button></div>{composer}</section>
+      <section id="content-library" tabIndex={-1} className="content-library-filters" aria-label="Filter and sort contents">
         <div className="library-view-heading"><h2><Clock3 size={20}/>Content history</h2><span aria-live="polite">{visibleQueue.length} of {queue.length} records</span></div>
         <div className="creator-library-toolbar">
           <label className="creator-library-search"><Search size={16} /><input type="search" aria-label="Search contents" placeholder="Search contents" value={search} onChange={event => setSearch(event.target.value)} /></label>
@@ -2082,8 +2104,8 @@ function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, compo
             <button type="button" className="creator-library-reset" aria-label="Reset" title="Reset search and filters" onClick={() => { setSearch(""); setTypeFilter("all"); setStatusFilter("all"); setSort("newest"); }}><RotateCcw size={17} aria-hidden="true" /></button>
           </div>
         </div>
-      </section>}
-      <div className="publish-list" hidden={Boolean(composer)}>
+      </section>
+      <div className="publish-list">
         {pendingGeneration && (
           <article className="publish-card with-video pending-publish-card">
             <div className="image-thumb pending">

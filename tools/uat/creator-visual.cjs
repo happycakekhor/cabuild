@@ -19,7 +19,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
  data=await(await context.request.get(local+'/api/app')).json();
  data.assets=[];data.publishQueue=[];data.connectedSocialAccounts=[];data.socialAudits=[];data.debugLogs=[];
  data.personaProfile={...data.personaProfile,displayName:'Studio North',company:'North & Co',role:'Creative team',mediaAssets:[{id:'visual-logo',role:'logo',label:'Studio mark',fileName:'mark.svg',url:'/icon.svg',contentType:'image/svg+xml'}]};
- const views={persona:'Persona',research:'Research',create:'Create Content',publish:'My Contents',automation:'Automation',audit:'Social Audit',analyse:'Analyze',logs:'Logs'};
+ const views={persona:'Persona',research:'Research',create:'My Contents',publish:'My Contents',automation:'Automation',audit:'Social Audit',analyse:'Analyze',logs:'Logs'};
  fs.mkdirSync('.playwright-mcp',{recursive:true});
  for(const width of [1440,768,390,320]){
   await page.setViewportSize({width,height:1000});

@@ -4,7 +4,6 @@ export type HeaderWorkspaceMode = "normal" | "drama" | null;
 export const normalPages = [
   { id: "persona", label: "Persona", detail: "Voice, audience and brand assets", icon: UserRound },
   { id: "research", label: "Research", detail: "Find proven topics and source content", icon: Radar },
-  { id: "create", label: "Create Content", detail: "Create images, videos and text", icon: Sparkles },
   { id: "publish", label: "My Contents", detail: "Create content and review your outputs", icon: CalendarDays },
   { id: "automation", label: "Automation", detail: "Schedule repeatable content workflows", icon: RefreshCcw },
   { id: "audit", label: "Social Audit", detail: "Understand connected-account performance", icon: BarChart3 },
