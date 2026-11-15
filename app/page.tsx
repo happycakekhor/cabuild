@@ -1,7 +1,7 @@
 "use client";
 import StatusToast, { useStatusToast } from "@/components/status-toast";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { flushSync } from "react-dom";
@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import PageIntro from "@/components/page-intro";
 import CreatorPageHeader from "@/components/creator-page-header";
+import CreatorSectionNav from "@/components/creator-section-nav";
 import SettingsPanel from "@/components/settings-panel";
 import SocialAuditPanel from "@/components/social-audit-panel";
 import AnalyticsPanel from "@/components/analytics-panel";
@@ -637,15 +638,10 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
   };
   return (
     <div className="persona-page">
-      <CreatorPageHeader title="Persona" art="identity"><span className="last-upd">{data.personaProfile.updatedAt ? `Updated ${new Date(data.personaProfile.updatedAt).toLocaleString()}` : "Not saved yet"}</span>{mode === "preview" && <button id="edit-persona" type="button" className="primary" onClick={() => setMode("edit")}><Pencil size={16} />Edit persona</button>}
+      <CreatorPageHeader title={mode === "edit" ? "Edit Persona" : "Persona"} art="identity"><span className="last-upd">{data.personaProfile.updatedAt ? `Updated ${new Date(data.personaProfile.updatedAt).toLocaleString()}` : "Not saved yet"}</span>{mode === "preview" && <button id="edit-persona" type="button" className="primary" onClick={() => setMode("edit")}><Pencil size={16} />Edit persona</button>}
       </CreatorPageHeader>
 
-      {mode === "edit" && <p className="persona-edit-notice" role="status"><Pencil size={17} />Editing persona · Save to apply your changes, or cancel to keep your saved profile.</p>}
-      <section className="persona-summary">
-        <Metric label="Profile completion" value={`${completion}%`} />
-        <Metric label="Voice" value={persona.voiceStyle ? "set" : "missing"} />
-        <Metric label="Sources" value={Object.values(persona.sourceUrls).filter(Boolean).length} />
-      </section>
+      {mode === "edit" && <p className="persona-edit-notice" role="status"><Pencil size={17} />Changes apply when you save.</p>}
 
       {showAutofill && <ContentDialog title="Auto-fill persona" description="Use your public profiles to build your persona. Review the results before creating content." busy={autoFilling} onClose={() => setShowAutofill(false)}>
         <form onSubmit={event => { event.preventDefault(); void autoFill(event.currentTarget); }} className="persona-autofill-form">
@@ -661,18 +657,16 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
           <div className="dialog-actions"><button type="button" disabled={autoFilling} onClick={() => setShowAutofill(false)}>Cancel</button><button type="submit" className="primary" disabled={autoFilling}>{autoFilling ? <AnimatedDots label="Auto-filling persona" /> : "Auto-fill persona"}</button></div>
         </form>
       </ContentDialog>}
-      {mode === "preview" && <PersonaPreview persona={data.personaProfile} />}
-      <div hidden={mode !== "edit"}><form key={(persona.updatedAt || "unsaved") + editVersion} onSubmit={event => { event.preventDefault(); void save(new FormData(event.currentTarget)); }} onChange={() => onEditingChange(true)} className="persona-setup"><fieldset className="persona-edit-fields" disabled={saving || autoFilling}>
-        <div className="persona-step-head">
-          <h3>Persona setup</h3>
-          <span className="badge">Prompt voice source</span>
-        </div>
+      {mode === "preview" && <PersonaPreview persona={data.personaProfile} completion={completion} />}
+      <div hidden={mode !== "edit"} className="persona-edit-layout">
+      <CreatorSectionNav label="Persona sections" sections={[{id:"persona-profile",label:"Core profile",icon:<UserRound size={18}/>},{id:"persona-voice",label:"Audience & voice",icon:<Megaphone size={18}/>},{id:"persona-media",label:"Media references",icon:<ImageIcon size={18}/>},{id:"persona-guardrails",label:"Prompt guardrails",icon:<SlidersHorizontal size={18}/>}]}><div className="editor-persona-identity"><PersonaMark persona={data.personaProfile}/><b>{data.personaProfile.displayName || "Your persona"}</b></div></CreatorSectionNav>
+      <form key={(persona.updatedAt || "unsaved") + editVersion} onSubmit={event => { event.preventDefault(); void save(new FormData(event.currentTarget)); }} onChange={() => onEditingChange(true)} className="persona-setup"><fieldset className="persona-edit-fields" disabled={saving || autoFilling}>
 
         <section className="persona-card">
           <div className="persona-fields">
             <div className="autofill-banner"><span className="dot" /><span>Import from public profiles</span><button id="persona-autofill-trigger" type="button" onClick={() => { setAutofillError(""); setShowAutofill(true); }}>Auto-fill</button></div>
 
-            <div className="persona-advanced">
+            <div className="persona-advanced" id="persona-profile" tabIndex={-1}>
               <h2 className="persona-section-title"><span className="persona-section-icon"><UserRound size={22} aria-hidden="true" /></span>Core profile</h2>
               <div className="grid two">
                 <label>Display name<input name="displayName" defaultValue={persona.displayName} placeholder="Sean C" /></label>
@@ -682,7 +676,7 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
               <label>Company one-liner<input name="companyOneLiner" defaultValue={persona.companyOneLiner} placeholder="We help SMEs automate ops with AI" /></label>
             </div>
 
-            <div className="persona-advanced">
+            <div className="persona-advanced" id="persona-voice" tabIndex={-1}>
               <h2 className="persona-section-title"><span className="persona-section-icon"><Megaphone size={22} aria-hidden="true" /></span>Audience and voice</h2>
               <label>Primary audience<input name="primaryAudience" defaultValue={persona.primaryAudience} placeholder="SME owners and operators in SEA" /></label>
               <label>Audience insight<textarea name="audienceInsight" defaultValue={persona.audienceInsight} placeholder="They want automation wins, but worry about cost, complexity, and disruption." /></label>
@@ -693,13 +687,13 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
               <label>Writing samples<textarea name="writingSamples" defaultValue={listValue(persona.writingSamples)} placeholder="Paste up to 3 samples, separated by a blank line or comma." /></label>
             </div>
 
-            <div className="persona-advanced">
+            <div className="persona-advanced" id="persona-media" tabIndex={-1}>
               <h2 className="persona-section-title"><span className="persona-section-icon"><ImageIcon size={22} aria-hidden="true" /></span>Reusable media references</h2>
-              <p className="muted">These saved assets can be selected later in Create Content and Automation. Product photos can have multiple entries; logo, avatar, and audio keep one default each.</p>
+              <p className="muted">Reusable in Create Content and Automation.</p>
               <PersonaMediaLibrary assets={mediaAssets} onChange={assets => { setMediaAssets(assets); onEditingChange(true); }} />
             </div>
 
-            <details className="persona-advanced">
+            <details className="persona-advanced" id="persona-guardrails" tabIndex={-1}>
               <summary>Advanced prompt guardrails</summary>
               <label>Natural phrases<input name="naturalPhrases" defaultValue={listValue(persona.naturalPhrases)} placeholder="Here's the thing, Real talk" /></label>
               <PersonaChips items={persona.naturalPhrases} />
@@ -715,7 +709,7 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
         </section>
 
         <div className="persona-footer">
-          <span className="muted">Used by research video, image, and text generation prompts.</span>
+          <span className="muted">Persona settings</span>
           <div className="row-actions"><button type="button" disabled={saving} onClick={cancelEdits}>Cancel</button><button className="primary" type="submit" disabled={saving}><Check size={14} />{saving ? "Saving…" : "Save persona"}</button></div>
         </div>
       </fieldset></form></div>
@@ -900,7 +894,7 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
         <Metric label="Top post" value={topResult ? compact(topResult.views) : "-"} />
       </div>}
 
-      {researchView === "search" && <section className={`research-card ${activeScanStatus ? "loading" : ""}`}>
+      {researchView === "search" && <section className={`research-card research-search-workspace ${activeScanStatus ? "loading" : ""}`}>
         <div className="research-mode">
           <button aria-pressed={searchMode === "url"} className={searchMode === "url" ? "on" : ""} onClick={() => setSearchMode("url")}><Radar size={14} />Search by URL</button>
           <button aria-pressed={searchMode === "keywords"} className={searchMode === "keywords" ? "on" : ""} onClick={() => setSearchMode("keywords")}><Search size={14} />Search by keywords</button>
@@ -962,8 +956,9 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
             </div>
           </form>
         )}
-        {activeScanStatus && <div className="scan-progress"><span />{activeScanStatus === "keywords" ? "Searching Apify in the background. You can leave this page and come back later." : "Scanning only the submitted URL/profile with Apify in the background. You can leave this page and come back later."}<b>{scanElapsed}s</b></div>}
+        {activeScanStatus && <div className="scan-progress"><span />Search continues in the background.<b>{scanElapsed}s</b></div>}
       </section>}
+      {researchView === "search" && historyScans.length > 0 && <section className="research-recent"><div className="research-head"><h2><Clock3 size={19}/>Recent searches</h2><button type="button" onClick={()=>setResearchView("history")}>View all<ArrowRight size={16}/></button></div><div>{[...historyScans].sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)).slice(0,4).map(scan=><button type="button" key={scan.id} onClick={()=>openScan(scan.id)}><PlatformIcon platform={scan.dimensions?.actorSources?.[0] || scan.platform}/><span><b>{scanLabel(scan)}</b><small>{scan.resultIds.length} saved results · {new Date(scan.createdAt).toLocaleDateString()}</small></span><ArrowRight size={16}/></button>)}</div></section>}
 
       {researchView === "results" && <section className={`research-card results-card ${activeScanStatus ? "loading" : ""}`} aria-busy={activeScanStatus ? "true" : "false"}>
         <div className="research-head">
@@ -994,6 +989,7 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
               <div className="result-rank">{index + 1}</div>
               <button type="button" className="result-thumb" aria-label={"Preview " + item.title} onClick={() => openSourcePreview(item)}>{item.thumbnailUrl ? <img src={proxiedMediaUrl(item.thumbnailUrl)} alt="" /> : <span>{item.platform.slice(0, 2).toUpperCase()}</span>}</button>
               <div className="result-main">
+                <span className="result-source"><PlatformIcon platform={item.platform}/>{item.platform}</span>
                 <button className="result-title-button" type="button" onClick={() => openSourcePreview(item)}>{item.title}</button>
                 <span>{new Date(item.publishedAt).toLocaleString()} · captured {new Date(item.capturedAt).toLocaleDateString()}</span>
                 {item.description && <small>{item.description}</small>}
@@ -1655,8 +1651,9 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
     }
   };
   return (
-    <form key={formVersion} onSubmit={(event) => { event.preventDefault(); void submit(new FormData(event.currentTarget)); }} className="generation-form create-generation-form">
+    <form key={formVersion} onSubmit={(event) => { event.preventDefault(); void submit(new FormData(event.currentTarget)); }} className="generation-form create-generation-form creation-studio">
       <fieldset className="creation-fields" disabled={busy || aiGenerating}>
+      <div className="studio-recipe" aria-label="Selected output settings"><span className="studio-recipe-platform"><PlatformIcon platform={platform}/><b>{platform}</b></span><span>{kind === "video" ? <Film size={17}/> : kind === "image" ? <ImageIcon size={17}/> : <FileText size={17}/>} {kind === "text" ? "Text post" : kind === "image" ? `${variants} ${variants === "1" ? "image" : "images"}` : "Video"}</span><span>{generationModels[kind].find(([value])=>value===model)?.[1] || model}</span>{kind !== "text" && <span><AspectRatioIcon value={aspectRatio}/>{aspectRatio}</span>}{kind === "video" && <span><Clock3 size={16}/>{model === "veo-fast" ? "8" : duration}s</span>}</div>
       <section className="create-card creation-persona">
         <h2 className="creator-section-title"><UserRound size={22} aria-hidden="true" />Persona</h2>
         <div className="persona-choice-grid">
@@ -1665,7 +1662,7 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
         </div>
         {!usePersona && <p className="muted">Saved persona context and references will not be added. Review any text already in your brief before generating.</p>}
       </section>
-      <section className="create-card">
+      <section className="create-card creation-brief">
         <div className="optional-brief-heading"><Sparkles size={22} /><h2>Generate Brief</h2><span className="badge">Optional</span></div>
         {activeInitial.sourceLabel !== "Direct generation" && <div className="brief-preview">
           <span>{activeInitial.sourceLabel}</span>
@@ -1690,7 +1687,7 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
         )}
       </section>
 
-      <section className="create-card">
+      <section className="create-card creation-settings">
         <div className="step-label"><SlidersHorizontal size={22} aria-hidden="true" />Format & settings</div>
         <div className="creation-platform-row"><ChoiceButtons label="Primary platform" name="platform" value={platform} options={Array.from(new Set([...platforms, "YouTube"])).map(value => ({value,label:value,icon:<PlatformIcon platform={value} />}))} onChange={value => setPlatform(value as Platform)} /></div>
         <div className="create-type-grid">
@@ -1731,14 +1728,14 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
       </section>
 
 
-      <section className="create-card">
+      <section className="create-card creation-content">
         <div className="step-label"><Pencil size={22} aria-hidden="true" />Your content</div>
         <label>Generation prompt<textarea aria-label="Generation prompt" required name="prompt" defaultValue={activeInitial.prompt} /></label>
         <label>Caption<textarea name="caption" defaultValue={activeInitial.caption} /></label>
         <label>Hashtags<input name="hashtags" defaultValue={activeInitial.hashtags} /></label>
         {submitError && <p className="provider-error" role="alert">{submitError}</p>}
         <div className="ftrow">
-          <div>Selected: <b>{model}</b></div>
+          <span className="studio-generate-label"><PlatformIcon platform={platform}/>{kind === "text" ? "Text post" : kind === "image" ? "Image" : "Video"}</span>
           <div className="row-actions">
             {onCancel && <button type="button" onClick={onCancel}>Cancel</button>}
             <button className="primary" disabled={busy}><Wand2 size={14} />{busy ? <AnimatedDots label={busyLabel} /> : submitLabel}</button>
@@ -1985,6 +1982,11 @@ function DramaWorkspacePanel({ src, title, refresh }: { src: string; title: stri
   );
 }
 
+function contentHistoryDay(item: PublishItem) {
+  const time = Date.parse(item.createdAt || item.scheduledAt);
+  return Number.isFinite(time) ? new Date(time).toLocaleDateString(undefined, { year:"numeric", month:"long", day:"numeric" }) : "Date not recorded";
+}
+
 function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, composer }: { data: AppData; run: (a: string, p?: Record<string, unknown>, m?: string) => Promise<void>; pendingGeneration: PendingGeneration | null; onCreate: () => void; onLibrary: () => void; composer?: ReactNode }) {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -2070,6 +2072,7 @@ function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, compo
       {generationNotice && <div className="generation-notice">{generationNotice}</div>}
       {composer}
       {!composer && <section className="content-library-filters" aria-label="Filter and sort contents">
+        <div className="library-view-heading"><h2><Clock3 size={20}/>Content history</h2><span aria-live="polite">{visibleQueue.length} of {queue.length} records</span></div>
         <div className="creator-library-toolbar">
           <label className="creator-library-search"><Search size={16} /><input type="search" aria-label="Search contents" placeholder="Search contents" value={search} onChange={event => setSearch(event.target.value)} /></label>
           <CreatorFilterSelect label="Type" accessibleLabel="Media type" value={typeFilter} defaultValue="all" onChange={setTypeFilter} options={[{ value:"all", label:"All media" }, { value:"video", label:"Video" }, { value:"image", label:"Image" }, { value:"text", label:"Text" }]} />
@@ -2106,7 +2109,7 @@ function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, compo
             </div>
           </article>
         )}
-        {visibleQueue.map((item) => {
+        {visibleQueue.map((item, index) => {
           const asset = data.assets.find((entry) => entry.id === item.assetId);
           const isVideo = item.generationType === "video" || asset?.type === "video" || asset?.type === "ugc";
           const isImage = item.generationType === "image" || asset?.type === "image" || asset?.type === "carousel";
@@ -2124,7 +2127,8 @@ function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, compo
               description: item.caption || asset?.prompt
             }
             : null;
-          return <ContentOutputCard key={item.id} item={item} asset={asset} onPreview={() => setPreviewAsset(previewableAsset)} onInfo={() => setInfoItem(item)} onSource={sourceMedia ? () => setSourcePreview(sourceMedia) : undefined} />;
+          const dateHeading = (sort === "newest" || sort === "oldest") && (index === 0 || contentHistoryDay(visibleQueue[index - 1]) !== contentHistoryDay(item));
+          return <Fragment key={item.id}>{dateHeading && <h2 className="content-history-date"><CalendarDays size={17}/>{contentHistoryDay(item)}</h2>}<ContentOutputCard item={item} asset={asset} onPreview={() => setPreviewAsset(previewableAsset)} onInfo={() => setInfoItem(item)} onSource={sourceMedia ? () => setSourcePreview(sourceMedia) : undefined} /></Fragment>;
         })}
         {queue.length === 0 && !pendingGeneration && <div className="empty-state">No content yet. Choose Create Content above to make your first image, video or post.</div>}
         {queue.length > 0 && visibleQueue.length === 0 && <div className="empty-state" role="status">No contents match these filters. Try another search or reset your filters.</div>}

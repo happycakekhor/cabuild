@@ -11,6 +11,7 @@ export default function ContentOutputCard({ item, asset, onPreview, onInfo, onSo
   const type = video ? "Video" : image ? "Image" : "Text post";
   const TypeIcon = video ? Film : image ? ImageIcon : FileText;
   const createdAt = item.createdAt || item.scheduledAt;
+  const hasDate = Number.isFinite(Date.parse(createdAt));
   return <article className="publish-card content-output-card">
     {video || image ? <button type="button" className={`content-output-media ${video ? "video-thumb" : "image-thumb"}${url ? "" : " pending"}`} disabled={!url} onClick={onPreview} aria-label={`Preview ${type.toLowerCase()}: ${item.title}`}>
       {url ? video ? <video src={url} muted preload="metadata" playsInline /> : <img src={url} alt={item.title} /> : <TypeIcon size={30} />}
@@ -24,7 +25,7 @@ export default function ContentOutputCard({ item, asset, onPreview, onInfo, onSo
     </div>
     <footer className="content-output-footer">
       <span className="content-type-label"><TypeIcon size={17} aria-hidden="true" />{type}</span>
-      <time dateTime={createdAt}>{new Date(createdAt).toLocaleString(undefined, { year:"numeric", month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" })}</time>
+      <time dateTime={hasDate ? createdAt : undefined}>{hasDate ? new Date(createdAt).toLocaleString(undefined, { year:"numeric", month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" }) : "Date not recorded"}</time>
       <div className="content-output-actions">
       {url && (video || image) && <a className="icon-btn" href={`/api/assets/${item.assetId}/download`} aria-label={`Download ${type.toLowerCase()}`} title={`Download ${type.toLowerCase()}`}><Download size={19} /></a>}
       <button type="button" className="icon-btn" onClick={onInfo} aria-label="Info" title="Content information"><Info size={19} /></button>

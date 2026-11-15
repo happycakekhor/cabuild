@@ -57,11 +57,6 @@
 .normal-workspace-frame:has(.creator-page-header) .ai-plan-box.compact { padding:0; border:0; background:transparent; margin-top:0; }
 .normal-workspace-frame:has(.creator-page-header) .ai-plan-inner { padding:0; }
 .normal-workspace-frame:has(.creator-page-header) textarea[name="idea"] { min-height:110px; height:110px; }
-@media(min-width:1200px) {
-  .normal-workspace-frame:has(.creator-page-header) .create-generation-form>.creation-fields { grid-template-columns:minmax(0,1fr) minmax(0,1.3fr); align-items:stretch; }
-  .normal-workspace-frame:has(.creator-page-header) .create-generation-form>.creation-fields>.create-card:nth-child(n+3) { grid-column:1/-1; }
-  .normal-workspace-frame:has(.creator-page-header) .creation-persona .persona-choice-grid { grid-template-columns:minmax(0,1fr); }
-}
 /* Recognizable platform logos have a reserved slot, so loaded assets never move labels. */
 .normal-workspace-frame:has(.creator-page-header) .choice-icon { width:32px; height:32px; }
 .normal-workspace-frame:has(.creator-page-header) .choice-icon .platform-logo { width:22px; height:22px; }

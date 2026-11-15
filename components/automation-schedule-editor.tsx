@@ -38,7 +38,6 @@ export default function AutomationScheduleEditor({scheduled=false}:{scheduled?:b
  const timeId=useId();
   return <section className="create-card automation-schedule-editor">
     <div className="optional-brief-heading"><CalendarDays size={22}/><h2>Schedule and publishing</h2></div>
-    <p className="step-helper">Build a rhythm for your content, then choose how much you want to review.</p>
     <div className="automation-schedule-block">
       <div className="automation-section-label"><Repeat2 size={19}/><h3>When should it run?</h3></div>
 <fieldset className="choice-buttons automation-frequency"><legend>Schedule type</legend><input type="hidden" name="frequency" value={frequency}/><div>{[{value:'weekly',label:'Weekly schedule'},{value:'interval',label:'Every X days'}].map(option=><button type="button" key={option.value} className={frequency===option.value?'on':''} aria-pressed={frequency===option.value} onClick={()=>setFrequency(option.value)}>{option.label}</button>)}</div></fieldset>
