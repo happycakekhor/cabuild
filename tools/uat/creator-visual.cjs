@@ -58,7 +58,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
  await page.getByRole('button',{name:'Image',exact:true}).click();assert.equal(await prompt.inputValue(),'Keep this unsaved draft');assert(await prompt.evaluate((el,original)=>el===original,node),'Format switch preserves DOM field');
  await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));
  await prompt.fill('Still editing');assert.equal(await page.evaluate(()=>document.getAnimations().length),0,'Editing does not replay entrance');
- await page.emulateMedia({reducedMotion:'reduce'});await page.goto(base+'/?view=persona');await page.locator('.creator-identity').waitFor();assert.equal(await page.evaluate(()=>document.getAnimations().length),0,'Reduced motion');
+ await page.emulateMedia({reducedMotion:'reduce'});await page.goto(base+'/?view=persona');await page.locator('.creator-identity').waitFor();assert.equal(await page.locator('.page-motion').evaluate(el=>el.getAnimations({subtree:true}).length),0,'Reduced motion disables workspace animation');
  data.personaProfile.mediaAssets=[{...data.personaProfile.mediaAssets[0],url:'/missing-visual-logo.svg'}];
  await page.reload();await page.locator('.creator-identity .creator-persona-mark svg').waitFor();assert.equal(await page.locator('.creator-identity .creator-persona-mark img').count(),0,'Broken brand mark falls back');
  data.personaProfile.mediaAssets=[];await page.reload();await page.locator('.creator-identity .creator-persona-mark svg').waitFor();

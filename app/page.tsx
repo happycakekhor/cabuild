@@ -876,14 +876,10 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
           {researchView !== "search" && <button className="primary" onClick={newSearch} disabled={!!pendingScan}><Search size={16} />Search</button>}
         </div>
       </CreatorPageHeader>
-      {researchView === "history" && <section className="research-card research-history">
-        <div className="research-head"><div><h2 className="creator-section-title"><Clock3 size={22} aria-hidden="true" />Research history</h2></div><button onClick={() => void refresh()}><RefreshCcw size={16} />Refresh history</button></div>
-        <div className="research-history-list">
-          {[...historyScans].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(scan => <button key={scan.id} className="research-history-entry" onClick={() => openScan(scan.id)}>
-            <span className="history-entry-icon"><Search size={20} /></span>
-            <span className="history-entry-main"><b>{scanLabel(scan)}</b><span>{scan.query || scan.url.startsWith("keyword:") ? "Keyword search" : "URL search"} · {scan.dimensions?.actorSources?.join(", ") || scan.platform} · {new Date(scan.createdAt).toLocaleString()}</span><small>{scan.resultIds.length} saved results · Minimum {compact(scan.minViews)} views</small></span>
-            {scan.status === "running" && <span className="history-entry-status running">Searching</span>}<ArrowRight size={18} />
-          </button>)}
+      {researchView === "history" && <section className="research-history research-search-history">
+        <div className="research-head"><h2><Clock3 size={19} aria-hidden="true" />Research history</h2><button onClick={() => void refresh()}><RefreshCcw size={16} />Refresh history</button></div>
+        <div className="research-history-list research-search-list">
+          {[...historyScans].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(scan => <ResearchSearchEntry key={scan.id} scan={scan} label={scanLabel(scan)} onOpen={openScan} history />)}
           {!historyScans.length && <div className="empty-state"><Search size={32} aria-hidden="true" /><h3>No saved searches</h3><button className="primary" onClick={newSearch}>Start a search</button></div>}
         </div>
       </section>}
@@ -966,7 +962,7 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
         )}
         {activeScanStatus && <div className="scan-progress"><span />Search continues in the background.<b>{scanElapsed}s</b></div>}
       </section>
-      <aside className="research-recent" aria-label="Recent searches"><div className="research-head"><h2><Clock3 size={19}/>Recent searches</h2><button type="button" onClick={()=>{setActiveScanId(null);setResearchView("history");}}>View all<ArrowRight size={16}/></button></div><div className="research-recent-list">{[...historyScans].sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)).slice(0,4).map(scan=><button type="button" key={scan.id} onClick={()=>openScan(scan.id)}><PlatformIcon platform={scan.dimensions?.actorSources?.[0] || scan.platform}/><span><b>{scanLabel(scan)}</b><small>{scan.resultIds.length} saved results · {new Date(scan.createdAt).toLocaleDateString()}</small></span><ArrowRight size={16}/></button>)}{!historyScans.length && <p className="research-recent-empty">No recent searches yet.</p>}</div></aside>
+      <section className="research-recent research-search-history" aria-label="Recent searches"><div className="research-head"><h2><Clock3 size={19}/>Recent searches</h2><button type="button" onClick={()=>{setActiveScanId(null);setResearchView("history");}}>View all<ArrowRight size={16}/></button></div><div className="research-recent-list research-search-list">{[...historyScans].sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)).slice(0,4).map(scan=><ResearchSearchEntry key={scan.id} scan={scan} label={scanLabel(scan)} onOpen={openScan} />)}{!historyScans.length && <p className="research-recent-empty">No recent searches yet.</p>}</div></section>
       </div>}
 
       {researchView === "results" && <section className={`research-card results-card ${activeScanStatus ? "loading" : ""}`} aria-busy={activeScanStatus ? "true" : "false"}>
@@ -1019,6 +1015,14 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
 
     </ResearchMotion>
   );
+}
+
+function ResearchSearchEntry({ scan, label, onOpen, history = false }: { scan: AppData["researchScans"][number]; label: string; onOpen: (id: string) => void; history?: boolean }) {
+  return <button type="button" className={`research-search-entry${history ? " research-history-entry" : ""}`} onClick={() => onOpen(scan.id)}>
+    <PlatformIcon platform={scan.dimensions?.actorSources?.[0] || scan.platform} />
+    <span className="research-search-entry-main"><b title={label}>{label}</b><span className="research-search-entry-meta"><span>{scan.resultIds.length} saved results · Minimum {compact(scan.minViews)} views</span><time dateTime={scan.createdAt}>{new Date(scan.createdAt).toLocaleString()}</time>{scan.status === "running" && <span className="history-entry-status running">Searching</span>}</span></span>
+    <ArrowRight size={16} aria-hidden="true" />
+  </button>;
 }
 
 function ActorSourceSelector({ selected, onSelect }: { selected: string; onSelect: (item: string) => void }) {
