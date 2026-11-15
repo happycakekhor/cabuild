@@ -1,0 +1,50 @@
+/* Bright green surfaces use dark labels; fine marks keep a stronger contrast. */
+:root {
+  --green-fill:#a8e3bc;
+  --green-fill-hover:#91d9aa;
+  --green-ink:#1f4d34;
+  --green-stroke:#4b8a62;
+  --green-detail:#397b50;
+}
+
+.normal-workspace-frame:has(.creator-page-header) { --creator-green:var(--green-detail); }
+.creator-page-mark,
+.desktop-brand-mark {
+  background:var(--green-fill);
+  color:var(--green-ink);
+}
+.desktop-nav-section.normal .desktop-nav-item.active,
+.desktop-navigation>.desktop-nav-item.active,
+.desktop-sidebar-footer>.desktop-nav-item.active {
+  background:var(--green-fill);
+  color:var(--green-ink);
+  box-shadow:inset 0 0 0 1px var(--green-stroke);
+}
+.normal-workspace-frame :is(button.primary,.primary,.plan-action,.generate-action,.content-type-group button.on,.pc.on,.account-avatar,.step-dot.active):not(:disabled),
+.desktop-welcome-heading>button.primary {
+  background:var(--green-fill);
+  border-color:var(--green-stroke);
+  color:var(--green-ink);
+}
+.normal-workspace-frame :is(button.primary,.primary,.plan-action,.generate-action,.content-type-group button.on,.pc.on):hover:not(:disabled),
+.desktop-welcome-heading>button.primary:hover:not(:disabled),
+.desktop-nav-section.normal .desktop-nav-item.active:hover,
+.desktop-navigation>.desktop-nav-item.active:hover,
+.desktop-sidebar-footer>.desktop-nav-item.active:hover {
+  background:var(--green-fill-hover);
+  border-color:var(--green-stroke);
+  color:var(--green-ink);
+}
+.normal-workspace-frame .content-type-group button.on :is(span,small),
+.normal-workspace-frame .pc.on .pd {
+  color:var(--green-ink);
+}
+.normal-workspace-frame .pc.on .pd { background:var(--green-ink); }
+.normal-workspace-frame .content-output-card .content-output-media>span {
+  background:rgb(168 227 188 / .96);
+  color:var(--green-ink);
+}
+.normal-workspace-frame :is(input[type="checkbox"],input[type="radio"],input[type="range"]) { accent-color:var(--green-detail); }
+.normal-workspace-frame .create-model-options button.on .mcard-dot { background:var(--green-detail); border-color:var(--green-detail); }
+.desktop-quick-links>button>span:first-child,
+.desktop-workflow-step:hover b { color:var(--green-detail); }
