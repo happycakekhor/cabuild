@@ -1,10 +1,20 @@
-/* Bright green surfaces use dark labels; fine marks keep a stronger contrast. */
+/* Paired workspace accents: stronger group headers, soft actions and selections. */
 :root {
-  --green-fill:#a8e3bc;
-  --green-fill-hover:#91d9aa;
+  --green-group:#a8e3bc;
+  --green-group-hover:#91d9aa;
+  --green-fill:#e2ecd9;
+  --green-fill-hover:#d5e2c7;
   --green-ink:#1f4d34;
   --green-stroke:#4b8a62;
   --green-detail:#397b50;
+  /* Purple counterparts share the green fills' HSL saturation and lightness. */
+  --purple-group:#c6a8e3;
+  --purple-group-hover:#b591d9;
+  --purple-fill:#e3d9ec;
+  --purple-fill-hover:#d5c7e2;
+  --purple-ink:#361f4d;
+  --purple-stroke:#6b4b8a;
+  --purple-detail:#5a397b;
 }
 
 .normal-workspace-frame:has(.creator-page-header) { --creator-green:var(--green-detail); }
@@ -41,10 +51,75 @@
 }
 .normal-workspace-frame .pc.on .pd { background:var(--green-ink); }
 .normal-workspace-frame .content-output-card .content-output-media>span {
-  background:rgb(168 227 188 / .96);
+  background:color-mix(in srgb,var(--green-fill) 96%,transparent);
   color:var(--green-ink);
 }
 .normal-workspace-frame :is(input[type="checkbox"],input[type="radio"],input[type="range"]) { accent-color:var(--green-detail); }
 .normal-workspace-frame .create-model-options button.on .mcard-dot { background:var(--green-detail); border-color:var(--green-detail); }
 .desktop-quick-links>button>span:first-child,
 .desktop-workflow-step:hover b { color:var(--green-detail); }
+
+.desktop-sidebar .normal .desktop-nav-group,
+.desktop-sidebar .normal .desktop-nav-group[aria-expanded=true] {
+  background:var(--green-group);
+  color:var(--green-ink);
+}
+.desktop-sidebar .normal .desktop-nav-group:hover { background:var(--green-group-hover); }
+.desktop-sidebar .drama .desktop-nav-group,
+.desktop-sidebar .drama .desktop-nav-group[aria-expanded=true] {
+  background:var(--purple-group);
+  color:var(--purple-ink);
+}
+.desktop-sidebar .drama .desktop-nav-group:hover { background:var(--purple-group-hover); }
+.desktop-nav-section.drama .desktop-nav-item.active {
+  background:var(--purple-fill);
+  color:var(--purple-ink);
+  box-shadow:inset 0 0 0 1px var(--purple-stroke);
+}
+.desktop-nav-section.drama .desktop-nav-item.active:hover { background:var(--purple-fill-hover); }
+
+.drama-embedded-root {
+  --blue:var(--purple-detail);
+  --blue-soft:var(--purple-fill);
+  --blue-ink:var(--purple-ink);
+}
+.drama-embedded-root :is(.primary-button,.save-button,.generated-episode-button,.generated-video-regenerate,.brief-favorites-filter.selected):not(:disabled) {
+  background:var(--purple-fill);
+  border-color:var(--purple-stroke);
+  color:var(--purple-ink);
+  box-shadow:none;
+}
+.drama-embedded-root :is(.primary-button,.save-button,.generated-episode-button,.generated-video-regenerate,.brief-favorites-filter.selected):hover:not(:disabled) {
+  background:var(--purple-fill-hover);
+  border-color:var(--purple-stroke);
+  color:var(--purple-ink);
+}
+.drama-embedded-root :is(.brief-choice-options>label.selected,.tone-chip.selected,.studio-tab.selected,.saved-work-card.selected,.stage-record-card.selected,.library-card.selected,.drama-reference-chip.selected,.clip-assembly-toggle.selected,.tab-bar button.active,.filter-tabs button.active) {
+  background:var(--purple-fill);
+  border-color:var(--purple-stroke);
+  color:var(--purple-ink);
+  box-shadow:inset 0 0 0 1px var(--purple-stroke);
+}
+.drama-embedded-root :is(.brief-choice-options>label.selected,.tone-chip.selected,.studio-tab.selected,.saved-work-card.selected,.drama-reference-chip.selected,.clip-assembly-toggle.selected,.tab-bar button.active,.filter-tabs button.active):hover {
+  background:var(--purple-fill-hover);
+}
+.drama-embedded-root .saved-work-card.selected .saved-work-radio {
+  background:var(--purple-fill);
+  color:var(--purple-ink);
+  border-color:var(--purple-stroke);
+}
+.drama-embedded-root .brief-library-card .brief-library-header,
+.drama-embedded-root .brief-library-card:is(.collapsed,.expanded) .brief-library-header {
+  background:var(--purple-group);
+  color:var(--purple-ink);
+}
+.drama-embedded-root .brief-library-card .brief-library-header :is(.brief-title-heading,.brief-title-toggle) { color:var(--purple-ink); }
+.drama-embedded-root .brief-library-header:has(.brief-title-toggle:focus-visible) { outline-color:var(--purple-detail); }
+.drama-embedded-root :is(input[type="checkbox"],input[type="radio"],input[type="range"]) { accent-color:var(--purple-detail); }
+.drama-embedded-root :is(.check-box.checked,.asset-checkbox.checked,.scene-checkbox.checked) {
+  background:var(--purple-detail);
+  border-color:var(--purple-detail);
+  color:#fff;
+}
+.drama-embedded-root .radio-dot.selected { border-color:var(--purple-detail); }
+.drama-embedded-root .brief-slider-points .selected i { background:var(--purple-detail); }

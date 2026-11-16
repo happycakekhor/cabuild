@@ -1,5 +1,11 @@
 # CABuild Project Handoff
 
+## 2026-11-16 — Swapped Creator accents and paired Drama palette
+
+- Swapped the user's pictured green roles throughout the shared accent layer: Content Creator group headers now use mint #a8e3bc; former mint actions, page/brand marks, selected controls/navigation and output badges use pale sage #e2ecd9. Hover shades and dark labels remain readable; badges derive their translucent fill from the same token.
+- Drama now follows the same hierarchy with purple group/header #c6a8e3 and action/selection #e3d9ec. These counterparts share green's HSL saturation and lightness (with rounding); purple ink, outlines, hover shades and fine control marks preserve contrast. Applies to navigation, primary actions, selected brief/model/tone/source/tab controls, saved brief headers and generation actions. Semantic status colors, real logos/media, layout and workflows are preserved.
+- Applied UI/UX Pro Max contrast guidance from its UX dataset. Release checks include lint/build, 90 route/viewport navigation cases, 11-route Creator palette checks and four-width Drama forms/saved-header/selection/hover/focus checks. Independent UAT and final deployment evidence are recorded in the persistent project log.
+
 Last updated: 2026-11-08
 
 ## Canonical GitHub repository
