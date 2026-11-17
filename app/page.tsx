@@ -1,5 +1,7 @@
 "use client";
 import StatusToast, { useStatusToast } from "@/components/status-toast";
+import KieModelBalances from "@/components/kie-model-balances";
+import { BRIEF_MODELS, type BriefModelId } from "@/lib/kie-models";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -1549,6 +1551,7 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
   const aiBusy = useRef(false);
   const [aiError, setAiError] = useState("");
   const [aiIdea, setAiIdea] = useState("");
+  const [briefModel, setBriefModel] = useState<BriefModelId>("gpt-5-5");
   const [assetRefs, setAssetRefs] = useState<AssetReference[]>([]);
   const [selectedPersonaAssetIds, setSelectedPersonaAssetIds] = useState<string[]>(() => personaAssets.map(asset => asset.id));
   const assetRefsRef = useRef<AssetReference[]>([]);
@@ -1615,6 +1618,7 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
     try {
       const draft = await post("generateBriefWithAi", {
         idea,
+        briefModel,
         usePersona,
         requestedFormat: preferredFormatForKind(kind, aspectRatio),
         requestedDuration: kind === "video" ? duration : undefined,
@@ -1697,9 +1701,12 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
                 <textarea name="idea" disabled={aiGenerating} value={aiIdea} onChange={(event) => setAiIdea(event.target.value)} placeholder="e.g. A short product demo for small business owners" />
               </label>
               {aiError && <div role="alert" className="provider-error">{aiError}</div>}
-              <div className="row-actions">
+              <div className="brief-footer">
+                <div className="brief-tools"><label className="brief-model-select">Brief model<select name="briefModel" value={briefModel} disabled={aiGenerating} onChange={event => setBriefModel(event.target.value as BriefModelId)}>{BRIEF_MODELS.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label><KieModelBalances /></div>
+                <div className="row-actions brief-actions">
                 <button className="primary" type="button" onClick={() => void generateAiDraft()} disabled={aiGenerating}><Sparkles size={14} />{aiGenerating ? <AnimatedDots label="Preparing brief" /> : aiError ? "Try again" : "Generate Brief"}</button>
                 <button type="button" onClick={() => { setAiIdea(""); setAiError(""); }} disabled={aiGenerating || (!aiIdea && !aiError)}>Clear</button>
+                </div>
               </div>
             </div>
           </div>

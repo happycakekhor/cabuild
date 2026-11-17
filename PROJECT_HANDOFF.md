@@ -1,5 +1,12 @@
 # CABuild Project Handoff
 
+## 2026-11-17 — Brief model selection and Kie model balances
+
+- Generate Brief has a native bottom-left model selector (GPT-5.5 or Gemini3 Pro, both already integrated in CABUILD), with Generate Brief/Clear aligned right. Brief model is separate from the output image/video model; selection survives errors and Clear. Server validates the two-model allowlist before logging or provider spend, routes Gemini to its chat-completions endpoint, and retains the detailed sanitized diagnostics/retry policy for both models.
+- Hover, click or keyboard-open Kie models next to the selector to view all12 Kie models with actual Content Creator/Drama provider integrations, one shared credit balance and owner-scoped historical last results where available. The read-only authenticated /api/account/kie-models endpoint has an8s provider deadline and no-store responses; unknown/zero/disconnected balances remain distinct. No generation probes, secrets or cross-workspace errors are exposed. The panel caches for60s, supports explicit refresh, and invalidates after generation (including failed calls).
+- Kie documents an account balance, not remaining per-model tokens or live provider-account capacity: https://docs.kie.ai/common-api/get-account-credits . The panel explicitly explains this limitation and never marks a model available based on credits or old successes. Gemini3.5 Flash is listed as provider-retired per https://docs.kie.ai/market/gemini/gemini-3-5-flash ; it is not offered for new brief selection. Broader existing text/automation migration is separate from this change. Gemini3 Pro contract: https://docs.kie.ai/market/gemini/gemini-3-pro . No arbitrary provider catalog models or UI-only Claude placeholder are added to the balance list.
+- Tests: kie-brief-recovery.cjs, content-brief-api.cjs, kie-models-api.cjs, brief-model-controls.cjs, brief-error-logs.cjs and adjacent persona/workspace flows. All generation uses fixtures; no paid request is required. Local/independent UAT, release and production verification evidence is recorded in the persistent project log.
+
 ## 2026-11-17 — Specific brief provider errors and diagnostics
 
 - Generate Brief now reports the provider's actual sanitized message, HTTP status and error code/type instead of interpreting every HTTP429 as either busy or exhausted quota. Handles Kie error envelopes returned with HTTP200 as provider errors, rather than incomplete output.

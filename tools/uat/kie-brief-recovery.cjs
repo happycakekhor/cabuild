@@ -12,6 +12,14 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
  assert.equal((await run([good()])).topic,plan.topic);
  assert.equal(calls[0].url,'https://api.kie.ai/codex/v1/responses');
  const body=JSON.parse(calls[0].opts.body);assert.equal(body.model,'gpt-5-5');assert.equal(body.stream,false);assert.equal(body.input[0].content[0].type,'input_text');assert(calls[0].opts.signal);
+ responses=[Response.json({choices:[{message:{content:JSON.stringify(plan)},finish_reason:'stop'}]})];calls=[];
+ assert.equal((await mod.exports.generateContentPlanWithGpt55({idea:'Alternate',niche:'Test'},'Fixture prompt','gemini-3-pro')).topic,plan.topic);
+ assert.equal(calls.length,1);assert.equal(calls[0].url,'https://api.kie.ai/gemini-3-pro/v1/chat/completions');assert.deepEqual(JSON.parse(calls[0].opts.body),{stream:false,messages:[{role:'user',content:[{type:'text',text:'Fixture prompt'}]}]});
+ for(const payload of [{code:429,msg:'Gemini capacity limited'},{choices:[{message:{content:JSON.stringify(plan)},finish_reason:'length'}]},{choices:[{message:{content:'{}'},finish_reason:'stop'}]}]){
+  responses=[Response.json(payload)];calls=[];
+  await assert.rejects(mod.exports.generateContentPlanWithGpt55({idea:'Alternate',niche:'Test'},'Fixture prompt','gemini-3-pro'),e=>e instanceof mod.exports.KieBriefError&&e.diagnostics.model==='gemini-3-pro'&&/Gemini 3 Pro/.test(e.message));assert.equal(calls.length,1);
+ }
+ calls=[];await assert.rejects(mod.exports.generateContentPlanWithGpt55({idea:'Test',niche:''},'Fixture','untrusted-model'),e=>/Unsupported/.test(e.message));assert.equal(calls.length,0);
  assert.equal((await run([new Response('Server exception',{status:500}),good()])).topic,plan.topic);assert.equal(calls.length,2);assert.deepEqual(delays,[1000]);
  await assert.rejects(run([new Response('Down',{status:503,headers:{'retry-after':'30'}}),new Response('Down',{status:500})]),e=>e instanceof mod.exports.KieBriefError && e.retryable && /temporarily unavailable/.test(e.userMessage));assert.equal(calls.length,2);assert.deepEqual(delays,[5000]);
  for(const status of [400,401,403,429]){await assert.rejects(run([new Response('Rejected',{status})]),e=>e instanceof mod.exports.KieBriefError);assert.equal(calls.length,1);assert.equal(delays.length,0)}

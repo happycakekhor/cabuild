@@ -1777,6 +1777,9 @@ export async function POST(req: Request) {
   }
 
   if (action === "generateBriefWithAi") {
+    const briefModel = body.briefModel === undefined ? "gpt-5-5" : body.briefModel;
+    if (briefModel !== "gpt-5-5" && briefModel !== "gemini-3-pro") return NextResponse.json({ error: "Choose a supported brief model." }, { status: 400 });
+    const briefModelLabel = briefModel === "gpt-5-5" ? "GPT-5.5" : "Gemini 3 Pro";
     const idea = String(body.idea || "").trim();
     if (!idea) return NextResponse.json({ error: "Tell me what you want to create first." }, { status: 400 });
     const requestedFormatRaw = String(body.requestedFormat || "").trim();
@@ -1789,14 +1792,14 @@ export async function POST(req: Request) {
     const prompt = buildAiBriefPrompt({ idea, niche, requestedFormat, requestedDuration, requestedModel, personaContext });
     await debugLog(workspaceId, {
       action,
-      label: "Prompt sent to Kie GPT-5.5 for new content plan",
+      label: `Prompt sent to Kie ${briefModelLabel} for new content plan`,
       status: "started",
       provider: "kie",
       prompt,
-      details: { model: "gpt-5-5", idea, requestedFormat: requestedFormat || undefined, requestedDuration, requestedModel: requestedModel || undefined }
+      details: { model: briefModel, idea, requestedFormat: requestedFormat || undefined, requestedDuration, requestedModel: requestedModel || undefined }
     });
     try {
-      const plan = await generateContentPlanWithGpt55({ idea, niche, requestedFormat, requestedDuration, requestedModel, personaContext }, prompt);
+      const plan = await generateContentPlanWithGpt55({ idea, niche, requestedFormat, requestedDuration, requestedModel, personaContext }, prompt, briefModel);
       const format = requestedFormat || String(plan.format || "Short video 9:16");
       const resolvedFormat = contentPlanFormats.includes(format) ? format : "Short video 9:16";
       const resolvedKind = contentKindFromFormat(resolvedFormat);
@@ -1821,20 +1824,20 @@ export async function POST(req: Request) {
       };
       await debugLog(workspaceId, {
         action,
-        label: `Kie GPT-5.5 populated new content plan: ${draft.topic}`,
+        label: `Kie ${briefModelLabel} populated new content plan: ${draft.topic}`,
         status: "success",
         provider: "kie",
-        details: { model: "gpt-5-5", format: draft.format, topic: draft.topic }
+        details: { model: briefModel, format: draft.format, topic: draft.topic }
       });
       return NextResponse.json(draft);
     } catch (error) {
       await debugLog(workspaceId, {
         action,
-        label: "Kie GPT-5.5 content plan generation failed",
+        label: `Kie ${briefModelLabel} content plan generation failed`,
         status: "failed",
         provider: "kie",
         prompt,
-        details: error instanceof KieBriefError ? error.diagnostics : undefined,
+        details: { ...(error instanceof KieBriefError ? error.diagnostics : {}), model: briefModel },
         error: error instanceof Error ? error.message : "Kie GPT-5.5 generation failed"
       });
       return NextResponse.json({ error: error instanceof KieBriefError ? error.userMessage : "The brief could not be generated. Your idea is still here. Please try again.", retryable: error instanceof KieBriefError && error.retryable }, { status: 502 });
