@@ -1,5 +1,11 @@
 # CABuild Project Handoff
 
+## 2026-11-17 — Specific brief provider errors and diagnostics
+
+- Generate Brief now reports the provider's actual sanitized message, HTTP status and error code/type instead of interpreting every HTTP429 as either busy or exhausted quota. Handles Kie error envelopes returned with HTTP200 as provider errors, rather than incomplete output.
+- Owner-scoped Logs retain the sanitized response body (up to8000 characters), provider message (up to4000), status/code/type, request ID, Retry-After and attempt number. Both failed server attempts are retained. Known API tokens, bearer credentials and credential fields are redacted before truncation. Existing retry policy remains: one retry for explicit HTTP500/502/503/504; no automatic retry for429, auth/credit errors or ambiguous connection failures.
+- Existing Logs error/detail presentation is reused; no schema migration. Historical truncated logs cannot be reconstructed. No live paid generation is required for verification. Focused checks: tools/uat/kie-brief-recovery.cjs, content-brief-api.cjs and brief-error-logs.cjs (provider through route to desktop/mobile error and saved-log presentation using fixture transport/storage). Release evidence is in the persistent project log.
+
 ## 2026-11-16 — Swapped Creator accents and paired Drama palette
 
 - Swapped the user's pictured green roles throughout the shared accent layer: Content Creator group headers now use mint #a8e3bc; former mint actions, page/brand marks, selected controls/navigation and output badges use pale sage #e2ecd9. Hover shades and dark labels remain readable; badges derive their translucent fill from the same token.

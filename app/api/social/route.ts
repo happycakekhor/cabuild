@@ -1834,6 +1834,7 @@ export async function POST(req: Request) {
         status: "failed",
         provider: "kie",
         prompt,
+        details: error instanceof KieBriefError ? error.diagnostics : undefined,
         error: error instanceof Error ? error.message : "Kie GPT-5.5 generation failed"
       });
       return NextResponse.json({ error: error instanceof KieBriefError ? error.userMessage : "The brief could not be generated. Your idea is still here. Please try again.", retryable: error instanceof KieBriefError && error.retryable }, { status: 502 });

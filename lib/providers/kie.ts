@@ -281,10 +281,46 @@ Create a complete editable content plan. Return ONLY valid JSON with this exact 
 }
 
 export class KieBriefError extends Error {
-  constructor(message: string, public readonly userMessage: string, public readonly retryable = false) {
+  constructor(message: string, public readonly userMessage: string, public readonly retryable = false, public readonly diagnostics: Record<string, unknown> = {}) {
     super(message);
     this.name = "KieBriefError";
   }
+}
+
+// Provider diagnostics are displayed in owner-scoped Logs. Redact before truncating,
+// including credentials echoed in an otherwise innocuous provider message.
+function briefDiagnosticText(value: unknown, apiToken: string, limit = 8000): string {
+  const text = typeof value === "string" ? value : JSON.stringify(value) ?? String(value);
+  const clean = text.split(apiToken).join("[REDACTED]")
+    .replace(/(Bearer|Basic)\s+[A-Za-z0-9._~+\/-]+=*/gi, "$1 [REDACTED]")
+    .replace(/((?:api[_-]?key|(?:access[_-]?|refresh[_-]?)?token|authorization|password|secret|cookie|credential)["']?\s*[:=]\s*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s,"'<>}]+)/gi, "$1[REDACTED]");
+  return clean.length > limit ? clean.slice(0, limit) + "… [truncated; see provider logs]" : clean;
+}
+
+function briefResponseDiagnostic(res: Response, text: string, apiToken: string, attempt: number) {
+  let payload: any;
+  try { payload = JSON.parse(text); } catch { /* Keep non-JSON provider failures as text. */ }
+  const redactFields = (value: unknown): unknown => {
+    if (typeof value === "string") return briefDiagnosticText(value, apiToken);
+    if (Array.isArray(value)) return value.map(redactFields);
+    if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) =>
+      [key, /api.?key|token|password|secret|authorization|cookie|credential/i.test(key) ? "[REDACTED]" : redactFields(item)]));
+    return value;
+  };
+  const scalar = (value: unknown) => typeof value === "string" || typeof value === "number" ? String(value) : "";
+  const error = payload?.error;
+  const providerMessage = scalar(error?.message) || scalar(error) || scalar(payload?.message) || scalar(payload?.msg);
+  return {
+    httpStatus: res.status,
+    providerCode: briefDiagnosticText(scalar(error?.code) || scalar(payload?.code), apiToken, 200),
+    providerType: briefDiagnosticText(scalar(error?.type), apiToken, 200),
+    providerMessage: briefDiagnosticText(providerMessage || (!payload ? text : ""), apiToken, 4000),
+    requestId: briefDiagnosticText(res.headers.get("x-request-id") || res.headers.get("request-id") || scalar(payload?.request_id) || scalar(error?.request_id), apiToken, 200),
+    retryAfter: briefDiagnosticText(res.headers.get("retry-after") || "", apiToken, 200),
+    responseBody: briefDiagnosticText(payload ? JSON.stringify(redactFields(payload)) : text, apiToken),
+    attempt,
+    rejected: Boolean(error) || (payload?.code != null && ![0, 200, "0", "200"].includes(payload.code))
+  };
 }
 
 export async function generateContentPlanWithGpt55(input: { idea: string; niche: string; requestedFormat?: string; requestedDuration?: number; requestedModel?: string; personaContext?: string }, prompt = buildAiBriefPrompt(input)) {
@@ -292,6 +328,8 @@ export async function generateContentPlanWithGpt55(input: { idea: string; niche:
   if (!apiToken) throw new KieBriefError("KIE_API_TOKEN is not configured.", "The brief service is not configured. Check the provider settings or write your brief manually.");
   const unavailable = "Kie’s brief service is temporarily unavailable. Your idea is still here. Try again shortly, or write the brief manually.";
   const invalid = "Kie returned an incomplete brief. Your idea is still here. Try again, or write the brief manually.";
+  const attempts: Record<string, unknown>[] = [];
+  const diagnostics = () => ({ model: "gpt-5-5", endpoint: "/codex/v1/responses", attempts });
   // Only retry an explicit server rejection, never an ambiguous network timeout.
   for (let attempt = 0; attempt < 2; attempt++) {
     let text: string;
@@ -309,33 +347,40 @@ export async function generateContentPlanWithGpt55(input: { idea: string; niche:
       });
       text = await res.text();
     } catch (error) {
-      throw new KieBriefError("Kie GPT-5.5 connection failed: " + (error instanceof Error ? error.message : "Unknown network error"), "The connection to Kie was interrupted. Your idea is still here. Check Logs before trying again, or write the brief manually.");
+      const reason = briefDiagnosticText(error instanceof Error ? error.message : "Unknown network error", apiToken);
+      attempts.push({ attempt: attempt + 1, failureKind: "connection", message: reason });
+      throw new KieBriefError("Kie GPT-5.5 connection failed: " + reason, "The connection to Kie was interrupted. Your idea is still here. Check Logs before trying again, or write the brief manually.", false, diagnostics());
     }
+    const diagnostic = briefResponseDiagnostic(res, text, apiToken, attempt + 1);
+    attempts.push(diagnostic);
     const transient = [500, 502, 503, 504].includes(res.status);
-    if (!res.ok) {
+    if (!res.ok || diagnostic.rejected) {
       if (transient && attempt === 0) {
         const retryAfter = Number(res.headers.get("retry-after"));
         await new Promise(resolve => setTimeout(resolve, Math.min(5000, Math.max(1000, Number.isFinite(retryAfter) ? retryAfter * 1000 : 1000))));
         continue;
       }
-      throw new KieBriefError("Kie GPT-5.5 failed with HTTP " + res.status + ": " + text.slice(0, 180),
-        transient ? unavailable : res.status === 401 || res.status === 403 ? "Kie could not authorize the brief request. Check the provider key in Settings, or write your brief manually." : res.status === 429 ? "Kie’s brief service is busy or its quota has been reached. Try again later, or check the provider account." : "Kie could not generate this brief. Your idea is still here. Check Logs for details, or write the brief manually.", transient || res.status === 429);
+      const codes = ["HTTP " + res.status, diagnostic.providerCode, diagnostic.providerType].filter(Boolean).join(" / ");
+      const reason = diagnostic.providerMessage || "Provider returned an error without a message.";
+      const summary = `Kie GPT-5.5 (${codes}): ${reason}`;
+      const guidance = transient ? unavailable : "Your idea is still here. Check Logs for details before trying again, or write the brief manually.";
+      throw new KieBriefError(summary, `${briefDiagnosticText(summary, apiToken, 600)} ${guidance}`, transient || res.status === 429 || diagnostic.providerCode === "429", diagnostics());
     }
     let parsed: KieResponsesResponse;
     try { parsed = JSON.parse(text) as KieResponsesResponse; }
-    catch { throw new KieBriefError("Kie GPT-5.5 returned invalid response JSON.", invalid, true); }
+    catch { throw new KieBriefError("Kie GPT-5.5 returned invalid response JSON (HTTP " + res.status + ").", invalid, true, diagnostics()); }
     if (!parsed || parsed.error || (parsed.status && parsed.status !== "completed")) {
-      throw new KieBriefError("Kie GPT-5.5 did not complete: " + (parsed?.error?.message || parsed?.status || "Empty response"), invalid, true);
+      throw new KieBriefError("Kie GPT-5.5 did not complete: " + briefDiagnosticText(parsed?.error?.message || parsed?.status || "Empty response", apiToken), invalid, true, diagnostics());
     }
     const content = (Array.isArray(parsed.output) ? parsed.output : [])
-      .flatMap(item => Array.isArray(item.content) ? item.content : [])
-      .filter(item => item.type === "output_text" && typeof item.text === "string")
+      .flatMap(item => Array.isArray(item?.content) ? item.content : [])
+      .filter(item => item?.type === "output_text" && typeof item.text === "string")
       .map(item => item.text).join("").trim();
     let plan: Record<string, unknown>;
     try { plan = extractJson(content) as Record<string, unknown>; }
-    catch { throw new KieBriefError("Kie GPT-5.5 returned no valid brief JSON.", invalid, true); }
+    catch { throw new KieBriefError("Kie GPT-5.5 returned no valid brief JSON.", invalid, true, diagnostics()); }
     if (!plan || Array.isArray(plan) || typeof plan.topic !== "string" || !plan.topic.trim() || typeof plan.videoPrompt !== "string" || !plan.videoPrompt.trim()) {
-      throw new KieBriefError("Kie GPT-5.5 brief is missing a topic or creation prompt.", invalid, true);
+      throw new KieBriefError("Kie GPT-5.5 brief is missing a topic or creation prompt.", invalid, true, diagnostics());
     }
     return plan;
   }
