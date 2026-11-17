@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { Coins, RefreshCcw, X } from "lucide-react";
 import { CREDIT_REFRESH_EVENT } from "@/lib/credit-refresh";
 import type { KieModelBalance } from "@/lib/kie-models";
@@ -10,6 +10,7 @@ export default function KieModelBalances() {
   const [data, setData] = useState<KieModelBalance | null>(null);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [position, setPosition] = useState<CSSProperties>();
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const request = useRef<AbortController | null>(null);
@@ -37,6 +38,25 @@ export default function KieModelBalances() {
     }
   }, []);
   useEffect(() => { if (open) void refresh(); }, [open, refresh]);
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      if (window.innerWidth <= 600) { setPosition(undefined); return; }
+      const anchor = trigger.current?.getBoundingClientRect();
+      if (!anchor) return;
+      const above = anchor.top - 22, below = window.innerHeight - anchor.bottom - 22;
+      const openAbove = above >= below;
+      const width = Math.min(430, window.innerWidth - 40);
+      const edge = Math.max(16, Math.min(window.innerHeight - 16, openAbove ? window.innerHeight - anchor.top + 6 : anchor.bottom + 6));
+      setPosition({ position: "fixed", width, left: Math.max(20, Math.min(anchor.left, window.innerWidth - width - 20)),
+        top: openAbove ? "auto" : edge, bottom: openAbove ? edge : "auto",
+        maxHeight: Math.max(0, Math.min(460, window.innerHeight - edge - 16)) });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true); };
+  }, [open]);
   useEffect(() => {
     const invalidate = () => { checked.current = 0; if (open || request.current) void refresh(true); };
     window.addEventListener(CREDIT_REFRESH_EVENT, invalidate);
@@ -58,7 +78,7 @@ export default function KieModelBalances() {
     onBlur={event => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) setOpen(false); }}
     onKeyDown={event => { if (event.key === "Escape" && open) { event.preventDefault(); event.stopPropagation(); close(); } }}>
     <button type="button" ref={trigger} className="brief-balance-trigger" aria-label="Kie models" aria-expanded={open} aria-controls={panelId} aria-haspopup="dialog" onClick={() => setOpen(current => !current)}><Coins size={16} aria-hidden="true" />Kie</button>
-    {open && <div id={panelId} role="dialog" aria-label="Kie model balances" className="brief-balance-popover">
+    {open && <div id={panelId} role="dialog" aria-label="Kie model balances" className="brief-balance-popover" style={position}>
       <div className="brief-balance-head"><b>Kie models in CABUILD</b><button type="button" aria-label="Close Kie model balances" onClick={close}><X size={16} /></button></div>
       <div className="brief-shared-balance"><span>Shared credits remaining</span><strong>{data ? !data.configured ? "Not connected" : data.credits === null ? "Unavailable" : data.credits.toLocaleString(undefined, { maximumFractionDigits: 4 }) : loading ? "Loading…" : "Unavailable"}</strong><button type="button" aria-label="Refresh Kie model balances" onClick={() => void refresh(true)} disabled={loading}><RefreshCcw size={16} aria-hidden="true" /></button></div>
       <p className="brief-balance-note">These models share one Kie balance. Kie does not report remaining tokens or live capacity per model.</p>

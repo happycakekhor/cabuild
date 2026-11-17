@@ -33,14 +33,22 @@ const fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript'),asser
    const select=page.locator('select[name="briefModel"]'),trigger=page.getByRole('button',{name:'Kie models',exact:true}),panel=page.getByRole('dialog',{name:'Kie model balances'});
    await select.waitFor();assert.deepEqual(await select.locator('option').evaluateAll(options=>options.map(o=>o.value)),['gpt-5-5','gemini-3-pro']);assert.equal(await select.inputValue(),'gpt-5-5');
    const idea=page.locator('textarea[name="idea"]');await idea.focus();
+   if(width>600)await trigger.evaluate(e=>{document.querySelector('main.main').scrollTop+=e.getBoundingClientRect().top-80});
    const before=balanceCalls;await trigger.hover();await panel.getByText('987.5',{exact:true}).waitFor();assert.equal(balanceCalls,before+1);
    assert.equal(await panel.locator('.brief-model-balance-row').count(),12);assert.match(await panel.innerText(),/remaining tokens or live capacity per model/);assert.match(await panel.innerText(),/Retired by provider/);assert.match(await panel.innerText(),/Last request: Rate limited/);
-   const rect=await panel.boundingBox();assert(rect.x>=0&&rect.x+rect.width<=width+1&&rect.y>=0&&rect.y+rect.height<=1001,'Panel fits viewport');
+   const rect=await panel.boundingBox();if(rect.y<0||rect.y+rect.height>1001)await page.screenshot({path:'.playwright-mcp/brief-panel-overflow.png'});assert(rect.x>=0&&rect.x+rect.width<=width+1&&rect.y>=0&&rect.y+rect.height<=1001,'Panel fits viewport at '+width+': '+JSON.stringify(rect));
    if(width===1440||width===390)await page.screenshot({path:'.playwright-mcp/brief-models-'+width+'.png'});
    await page.keyboard.press('Escape');await panel.waitFor({state:'hidden'});assert(await idea.evaluate(e=>e===document.activeElement),'Hover Escape preserves outside focus');await page.mouse.move(0,0);await trigger.hover();await panel.waitFor();
    await trigger.focus();await page.keyboard.press('Escape');await panel.waitFor({state:'hidden'});assert(await trigger.evaluate(e=>e===document.activeElement));
    await page.mouse.move(0,0);await page.keyboard.press('Enter');await panel.waitFor();assert.equal(balanceCalls,before+1,'Cached reopen avoids provider queries');
    await panel.getByRole('button',{name:'Close Kie model balances'}).click();
+   if(width===1440){
+    await trigger.focus();await page.keyboard.press('Enter');await panel.waitFor();
+    await trigger.evaluate(e=>{document.querySelector('main.main').scrollTop+=e.getBoundingClientRect().top-850});
+    await page.setViewportSize({width:768,height:720});
+    await page.waitForFunction(()=>{const r=document.querySelector('.brief-balance-popover')?.getBoundingClientRect();return r&&r.x>=0&&r.y>=0&&r.right<=innerWidth+1&&r.bottom<=innerHeight+1});
+    await page.setViewportSize({width:1440,height:1000});await page.keyboard.press('Escape');await panel.waitFor({state:'hidden'});
+   }
    await select.selectOption('gemini-3-pro');await page.locator('textarea[name="idea"]').fill('Fun marketing');
    if(width===1440||width===390||width===320)await page.locator('.creation-brief').screenshot({path:'.playwright-mcp/brief-controls-'+width+'.png'});
    const generate=page.getByRole('button',{name:'Generate Brief',exact:true});const s=await select.boundingBox(),g=await generate.boundingBox(),c=await page.getByRole('button',{name:'Clear',exact:true}).boundingBox();assert(s.x<g.x,'Model left of actions');assert(g.x<c.x,'Clear follows Generate');
