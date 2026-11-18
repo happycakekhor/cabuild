@@ -1,0 +1,69 @@
+/* Match the saved profile hierarchy while keeping every field in one form. */
+.normal-workspace-frame .persona-editor { display:block; }
+.normal-workspace-frame .persona-editor[hidden] { display:none; }
+.app-shell>.main:has(.persona-editor:not([hidden])) { scroll-padding-top:180px; }
+.app-shell .normal-workspace-frame .persona-editor .persona-setup { background:transparent; box-shadow:none; gap:16px; }
+.persona-editor-actions { position:sticky; top:86px; z-index:5; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 18px; background:#fff; border:1px solid var(--creator-border); border-radius:12px; box-shadow:0 3px 12px #243b340a; }
+.persona-save-hint { font-size:12px; color:var(--creator-muted); }
+.persona-editor-actions .row-actions { display:flex; flex-wrap:nowrap; gap:8px; }
+.persona-editor .persona-edit-fields { gap:16px; }
+.persona-editor-top { display:grid; grid-template-columns:minmax(220px,1fr) minmax(0,2fr); gap:16px; align-items:stretch; }
+.persona-editor-image { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:24px; padding:24px; border:1px solid var(--creator-border); border-radius:14px; background:#fff; min-width:0; }
+.app-shell .normal-workspace-frame .persona-editor-image .creator-persona-mark { width:184px; height:184px; max-width:100%; border-radius:26px; background:var(--creator-soft); }
+.persona-editor-image .creator-persona-mark>svg { width:70px; height:70px; }
+.persona-editor-image button { gap:8px; }
+.app-shell .normal-workspace-frame .persona-editor .persona-advanced { padding:22px 24px; margin:0; gap:16px; border:1px solid var(--creator-border); border-radius:14px; background:#fff; }
+.persona-editor .persona-section-title { margin:0; font-size:18px; }
+.persona-editor .grid.two { gap:16px 20px; }
+.persona-editor label { min-width:0; font-size:12px; color:var(--creator-muted); gap:6px; align-content:start; }
+.app-shell .normal-workspace-frame .persona-editor :is(input,select,textarea) { width:100%; min-width:0; font-size:15px; color:var(--creator-ink); }
+.app-shell .normal-workspace-frame .persona-editor .persona-name-field input { font-size:26px; font-weight:650; line-height:1.3; min-height:54px; }
+.app-shell .normal-workspace-frame .persona-editor .persona-company-field input { font-size:22px; font-weight:600; line-height:1.4; min-height:54px; }
+.persona-editor textarea { min-height:90px; resize:vertical; }
+.persona-editor #persona-writing textarea { min-height:180px; }
+.persona-editor .persona-opinions-field { grid-column:1/-1; }
+.app-shell .normal-workspace-frame .persona-editor details.persona-advanced { padding:0; }
+.normal-workspace-frame .persona-editor details.persona-advanced>summary { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px 24px; min-height:60px; border:0; border-radius:14px; background:transparent; color:var(--creator-ink); }
+.persona-editor summary h2 { display:flex; align-items:center; gap:12px; margin:0; font-size:16px; font-weight:600; line-height:1.5; }
+.persona-editor summary h2>svg { flex-shrink:0; }
+.normal-workspace-frame .persona-editor summary:hover { background:var(--creator-soft); }
+.persona-editor summary:focus-visible { outline:3px solid #527b99; outline-offset:3px; }
+.normal-workspace-frame .persona-editor details[open]>summary { border-bottom:1px solid var(--creator-border); border-radius:14px 14px 0 0; }
+.persona-editor .persona-editor-detail { padding:20px 24px; }
+.normal-workspace-frame:has(.creator-page-header) .persona-editor :is(input,textarea,select,summary,button) { scroll-margin-top:175px; }
+.persona-editor .persona-media-item { min-width:0; }
+.persona-editor .persona-media-item>div { min-width:0; }
+.persona-editor .persona-media-item small { overflow-wrap:anywhere; color:var(--creator-muted); }
+.persona-editor .upbox { position:relative; }
+.app-shell .normal-workspace-frame .persona-editor .upbox input[type=file] { display:block; position:absolute; width:1px; height:1px; min-height:0; padding:0; margin:-1px; clip-path:inset(50%); overflow:hidden; }
+.persona-editor .upbox:focus-within { outline:3px solid #527b99; outline-offset:3px; }
+@media(max-width:1100px) {
+  .persona-save-hint { display:none; }
+  .persona-editor-actions { justify-content:flex-end; }
+  .persona-editor-top { grid-template-columns:minmax(180px,1fr) minmax(0,2fr); }
+  .app-shell .normal-workspace-frame .persona-editor-image .creator-persona-mark { width:144px; height:144px; }
+}
+@media(max-width:700px) {
+  .persona-editor-top { grid-template-columns:minmax(0,1fr); }
+  .persona-editor-image { flex-direction:row; justify-content:flex-start; gap:24px; padding:20px; }
+  .app-shell .normal-workspace-frame .persona-editor-image .creator-persona-mark { width:144px; height:144px; }
+  .persona-editor .grid.two { grid-template-columns:minmax(0,1fr); }
+  .app-shell .normal-workspace-frame .persona-editor .persona-advanced { padding:20px; }
+  .normal-workspace-frame .persona-editor details.persona-advanced>summary,.persona-editor .persona-editor-detail { padding:16px 20px; }
+}
+@media(max-width:500px) {
+  .app-shell>.main:has(.persona-editor:not([hidden])) { scroll-padding-top:230px; }
+  .persona-editor-actions { padding:12px; top:72px; }
+  .persona-editor-actions .persona-profile-actions { width:100%; flex-wrap:wrap; gap:10px; }
+  .persona-editor-actions .profile-completion { width:100%; max-width:none; flex-basis:100%; }
+  .persona-editor-actions .row-actions { width:100%; justify-content:flex-end; }
+  .persona-editor-actions .row-actions button { flex:1; }
+  .persona-editor-image { gap:16px; padding:16px; }
+  .persona-editor-image button { padding:10px; }
+  .normal-workspace-frame:has(.creator-page-header) .persona-editor :is(input,select,textarea,summary,button) { scroll-margin-top:225px; }
+}
+@media(max-height:600px) {
+  .app-shell>.main:has(.persona-editor:not([hidden])) { scroll-padding-top:100px; }
+  .persona-editor-actions { position:static; }
+  .normal-workspace-frame:has(.creator-page-header) .persona-editor :is(input,select,textarea,summary,button) { scroll-margin-top:100px; }
+}

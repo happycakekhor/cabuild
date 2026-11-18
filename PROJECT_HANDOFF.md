@@ -1,5 +1,11 @@
 # CABuild Project Handoff
 
+## 2026-11-18 — Edit Persona hierarchy
+
+- Edit Persona follows the overview: larger profile image beside a wider core profile, prominent name/company inputs, then full-width audience and voice. Writing samples, media references and prompt guardrails expand independently; all fields remain in the form and serialize even while collapsed. Removed repeated sidebar identity/navigation and stale chip copies under editable fields.
+- A single sticky Save/Cancel group sits beside draft completion, which updates as fields change. Short landscape screens use normal-flow actions. Cancel restores the saved profile and focus; existing save/autofill recovery, source URLs and media behavior remain. Upload controls are keyboard accessible and media label inputs have explicit accessible names.
+- Research and acceptance criteria: docs/design/persona-editor-hierarchy-2026-11-18.md. Release validation and independent UAT evidence are recorded in the persistent project log.
+
 ## 2026-11-18 — Persona overview hierarchy
 
 - Persona now presents identity values once, with a larger image, prominent name/company/role and audience/voice near the top. Public-profile destinations appear once beneath the image; duplicate destinations are normalized and omitted from the repeated display only, without changing saved URLs. Completion is adjacent to Edit persona.

@@ -43,7 +43,6 @@ import {
 } from "lucide-react";
 import PageIntro from "@/components/page-intro";
 import CreatorPageHeader from "@/components/creator-page-header";
-import CreatorSectionNav from "@/components/creator-section-nav";
 import SettingsPanel from "@/components/settings-panel";
 import SocialAuditPanel from "@/components/social-audit-panel";
 import AnalyticsPanel from "@/components/analytics-panel";
@@ -513,12 +512,6 @@ function listValue(items?: string[]) {
   return (items || []).join(", ");
 }
 
-function PersonaChips({ items }: { items?: string[] }) {
-  const values = (items || []).filter(Boolean);
-  if (!values.length) return <span className="persona-empty">No entries yet</span>;
-  return <div className="persona-chip-row">{values.map((item) => <span className="persona-chip" key={item}>{item}</span>)}</div>;
-}
-
 async function uploadReferenceFile(role: ReferenceRole, file: File): Promise<GenerationAssetReference> {
   const form = new FormData();
   form.set("role", role);
@@ -579,7 +572,7 @@ function PersonaMediaLibrary({ assets, onChange }: { assets: PersonaMediaAsset[]
             {asset.contentType?.startsWith("audio/") || asset.role === "audio" ? <div className="audio-chip"><Mic size={15} />Audio</div> : <img src={asset.url} alt={asset.label || asset.fileName} />}
             <div>
               <span>{referenceLabelForRole(asset.role)}</span>
-              <input value={asset.label} onChange={(event) => updateLabel(asset.id, event.target.value)} />
+              <input aria-label={`${referenceLabelForRole(asset.role)} label`} value={asset.label} onChange={(event) => updateLabel(asset.id, event.target.value)} />
               <small>{asset.fileName}</small>
             </div>
             <button type="button" onClick={() => remove(asset.id)}>Remove</button>
@@ -595,6 +588,7 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
   const [mode, setMode] = useState<"preview" | "edit">("preview");
   const [editVersion, setEditVersion] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [draftCompletion, setDraftCompletion] = useState<number | null>(null);
   const [showAutofill, setShowAutofill] = useState(false);
   const [autoFilling, setAutoFilling] = useState(false);
   const [autofillError, setAutofillError] = useState("");
@@ -602,7 +596,7 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
   const [autofillDraft, setAutofillDraft] = useState<PersonaProfile | null>(null);
   const persona = autofillDraft || data.personaProfile;
   useEffect(() => () => onEditingChange(false), [onEditingChange]);
-  const cancelEdits = () => { onEditingChange(false); setAutofillDraft(null); setMediaAssets(data.personaProfile.mediaAssets || []); setEditVersion(version => version + 1); setMode("preview"); };
+  const cancelEdits = () => { onEditingChange(false); setDraftCompletion(null); setAutofillDraft(null); setMediaAssets(data.personaProfile.mediaAssets || []); setEditVersion(version => version + 1); setMode("preview"); requestAnimationFrame(() => document.getElementById("edit-persona")?.focus()); };
   const storedMediaAssets = JSON.stringify(persona.mediaAssets || []);
   const [mediaAssets, setMediaAssets] = useState<PersonaMediaAsset[]>(persona.mediaAssets || []);
   useEffect(() => {
@@ -626,7 +620,7 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
     try {
       const result = await run("updatePersonaProfile", Object.fromEntries(form.entries()), "Persona saved");
       if (result) {
-        onEditingChange(false); setAutofillDraft(null); setMode("preview");
+        onEditingChange(false); setDraftCompletion(null); setAutofillDraft(null); setMode("preview");
         requestAnimationFrame(() => document.getElementById("edit-persona")?.focus({ preventScroll: false }));
       }
     } finally { setSaving(false); }
@@ -643,7 +637,7 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
     setAutofillError("");
     try {
       const result = await run("autoFillPersonaProfile", { ...values, previewOnly: true }, "Persona draft prepared. Save to apply your changes.");
-      if (result) { onEditingChange(true); setAutofillDraft({ ...result, mediaAssets }); setEditVersion(version => version + 1); setShowAutofill(false); }
+      if (result) { onEditingChange(true); setDraftCompletion(null); setAutofillDraft({ ...result, mediaAssets }); setEditVersion(version => version + 1); setShowAutofill(false); }
       else setAutofillError("We couldn’t auto-fill your profile. Your URLs are still here; please try again.");
     } finally { autofillBusy.current = false; setAutoFilling(false); }
   };
@@ -651,8 +645,6 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
     <div className="persona-page">
       <CreatorPageHeader title={mode === "edit" ? "Edit Persona" : "Persona"} art="identity"><span className="last-upd">{data.personaProfile.updatedAt ? `Updated ${new Date(data.personaProfile.updatedAt).toLocaleString()}` : "Not saved yet"}</span>{mode === "preview" && <div className="persona-profile-actions"><div className="profile-completion"><span>Profile completion<b>{completion}%</b></span><progress value={completion} max={100} aria-label="Profile completion" /></div><button id="edit-persona" type="button" className="primary" onClick={() => setMode("edit")}><Pencil size={16} />Edit persona</button></div>}
       </CreatorPageHeader>
-
-      {mode === "edit" && <p className="persona-edit-notice" role="status"><Pencil size={17} />Changes apply when you save.</p>}
 
       {showAutofill && <ContentDialog title="Auto-fill persona" description="Use your public profiles to build your persona. Review the results before creating content." busy={autoFilling} onClose={() => setShowAutofill(false)}>
         <form onSubmit={event => { event.preventDefault(); void autoFill(event.currentTarget); }} className="persona-autofill-form">
@@ -669,60 +661,63 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
         </form>
       </ContentDialog>}
       {mode === "preview" && <PersonaPreview persona={data.personaProfile} />}
-      <div hidden={mode !== "edit"} className="persona-edit-layout">
-      <CreatorSectionNav label="Persona sections" sections={[{id:"persona-profile",label:"Core profile",icon:<UserRound size={18}/>},{id:"persona-voice",label:"Audience & voice",icon:<Megaphone size={18}/>},{id:"persona-media",label:"Media references",icon:<ImageIcon size={18}/>},{id:"persona-guardrails",label:"Prompt guardrails",icon:<SlidersHorizontal size={18}/>}]}><div className="editor-persona-identity"><PersonaMark persona={data.personaProfile}/><b>{data.personaProfile.displayName || "Your persona"}</b></div></CreatorSectionNav>
-      <form key={(persona.updatedAt || "unsaved") + editVersion} onSubmit={event => { event.preventDefault(); void save(new FormData(event.currentTarget)); }} onChange={() => onEditingChange(true)} className="persona-setup"><fieldset className="persona-edit-fields" disabled={saving || autoFilling}>
-
-        <section className="persona-card">
-          <div className="persona-fields">
-            <div className="autofill-banner"><span className="dot" /><span>Import from public profiles</span><button id="persona-autofill-trigger" type="button" onClick={() => { setAutofillError(""); setShowAutofill(true); }}>Auto-fill</button></div>
-
+      <div hidden={mode !== "edit"} className="persona-edit-layout persona-editor">
+      <form key={(persona.updatedAt || "unsaved") + editVersion} onSubmit={event => { event.preventDefault(); void save(new FormData(event.currentTarget)); }} onChange={event => {
+        onEditingChange(true);
+        const values = new FormData(event.currentTarget);
+        const fields = ["displayName", "role", "company", "primaryAudience", "audienceInsight", "voiceStyle", "writingSamples"];
+        setDraftCompletion(Math.round(fields.filter(field => String(values.get(field) || "").trim()).length / fields.length * 100));
+      }} className="persona-setup">
+        <div className="persona-editor-actions">
+          <span className="persona-save-hint">Changes apply when you save.</span>
+          <div className="persona-profile-actions">
+            <div className="profile-completion"><span>Profile completion<b>{draftCompletion ?? completion}%</b></span><progress value={draftCompletion ?? completion} max={100} aria-label="Profile completion" /></div>
+            <div className="row-actions"><button type="button" disabled={saving || autoFilling} onClick={cancelEdits}>Cancel</button><button className="primary" type="submit" disabled={saving || autoFilling}><Check size={16} />{saving ? "Saving…" : "Save persona"}</button></div>
+          </div>
+        </div>
+        <fieldset className="persona-edit-fields" disabled={saving || autoFilling}>
+          <div className="persona-editor-top">
+            <section className="persona-editor-image" aria-label="Profile image">
+              <PersonaMark persona={{ ...persona, mediaAssets }} />
+              <button id="persona-autofill-trigger" type="button" onClick={() => { setAutofillError(""); setShowAutofill(true); }}><Sparkles size={16} />Auto-fill</button>
+            </section>
             <div className="persona-advanced" id="persona-profile" tabIndex={-1}>
               <h2 className="persona-section-title"><span className="persona-section-icon"><UserRound size={22} aria-hidden="true" /></span>Core profile</h2>
               <div className="grid two">
-                <label>Display name<input name="displayName" defaultValue={persona.displayName} placeholder="Sean C" /></label>
-                <label>Role<input name="role" defaultValue={persona.role} placeholder="Founder / CEO" /></label>
+                <label className="persona-name-field">Display name<input name="displayName" defaultValue={persona.displayName} placeholder="Sean C" /></label>
+                <label className="persona-company-field">Company<input name="company" defaultValue={persona.company} placeholder="ContentAgent" /></label>
               </div>
-              <label>Company<input name="company" defaultValue={persona.company} placeholder="ContentAgent" /></label>
+              <label>Role<input name="role" defaultValue={persona.role} placeholder="Founder / CEO" /></label>
               <label>Company one-liner<input name="companyOneLiner" defaultValue={persona.companyOneLiner} placeholder="We help SMEs automate ops with AI" /></label>
             </div>
-
+          </div>
             <div className="persona-advanced" id="persona-voice" tabIndex={-1}>
               <h2 className="persona-section-title"><span className="persona-section-icon"><Megaphone size={22} aria-hidden="true" /></span>Audience and voice</h2>
-              <label>Primary audience<input name="primaryAudience" defaultValue={persona.primaryAudience} placeholder="SME owners and operators in SEA" /></label>
-              <label>Audience insight<textarea name="audienceInsight" defaultValue={persona.audienceInsight} placeholder="They want automation wins, but worry about cost, complexity, and disruption." /></label>
               <div className="grid two">
+                <label>Primary audience<input name="primaryAudience" defaultValue={persona.primaryAudience} placeholder="SME owners and operators in SEA" /></label>
                 <label>Voice style<input name="voiceStyle" defaultValue={persona.voiceStyle} placeholder="friendly, practical, slightly humorous" /></label>
+                <label>Audience insight<textarea name="audienceInsight" defaultValue={persona.audienceInsight} placeholder="They want automation wins, but worry about cost, complexity, and disruption." /></label>
                 <label>Content language<select name="contentLanguage" defaultValue={persona.contentLanguage}><option>English only</option><option>English + BM</option><option>English + Mandarin</option><option>Manglish</option><option>Multi-language</option></select></label>
               </div>
-              <label>Writing samples<textarea name="writingSamples" defaultValue={listValue(persona.writingSamples)} placeholder="Paste up to 3 samples, separated by a blank line or comma." /></label>
             </div>
-
-            <div className="persona-advanced" id="persona-media" tabIndex={-1}>
-              <h2 className="persona-section-title"><span className="persona-section-icon"><ImageIcon size={22} aria-hidden="true" /></span>Reusable media references</h2>
-              <p className="muted">Reusable in Create Content and Automation.</p>
-              <PersonaMediaLibrary assets={mediaAssets} onChange={assets => { setMediaAssets(assets); onEditingChange(true); }} />
-            </div>
-
-            <details className="persona-advanced" id="persona-guardrails" tabIndex={-1}>
-              <summary>Advanced prompt guardrails</summary>
-              <label>Natural phrases<input name="naturalPhrases" defaultValue={listValue(persona.naturalPhrases)} placeholder="Here's the thing, Real talk" /></label>
-              <PersonaChips items={persona.naturalPhrases} />
-              <label>Banned vocabulary<input name="bannedVocabulary" defaultValue={listValue(persona.bannedVocabulary)} placeholder="synergy, disruptive" /></label>
-              <PersonaChips items={persona.bannedVocabulary} />
-              <label>Approved topics<input name="approvedTopics" defaultValue={listValue(persona.approvedTopics)} placeholder="AI automation, founder productivity" /></label>
-              <PersonaChips items={persona.approvedTopics} />
-              <label>Off-limits topics<input name="offLimitsTopics" defaultValue={listValue(persona.offLimitsTopics)} placeholder="Politics, medical advice" /></label>
-              <PersonaChips items={persona.offLimitsTopics} />
-              <label>Strong opinions<textarea name="strongOpinions" defaultValue={persona.strongOpinions} placeholder="AI will not replace jobs - it replaces tasks." /></label>
+            <details className="persona-advanced" id="persona-writing">
+              <summary><h2><Pencil size={20} />Writing samples</h2></summary>
+              <div className="persona-editor-detail"><label>Examples of your writing<textarea name="writingSamples" defaultValue={listValue(persona.writingSamples)} placeholder="Paste up to 3 samples, separated by a blank line or comma." /></label></div>
             </details>
-          </div>
-        </section>
-
-        <div className="persona-footer">
-          <span className="muted">Persona settings</span>
-          <div className="row-actions"><button type="button" disabled={saving} onClick={cancelEdits}>Cancel</button><button className="primary" type="submit" disabled={saving}><Check size={14} />{saving ? "Saving…" : "Save persona"}</button></div>
-        </div>
+            <details className="persona-advanced" id="persona-media" tabIndex={-1}>
+              <summary><h2><ImageIcon size={20} />Media references</h2></summary>
+              <div className="persona-editor-detail"><PersonaMediaLibrary assets={mediaAssets} onChange={assets => { setMediaAssets(assets); onEditingChange(true); }} /></div>
+            </details>
+            <details className="persona-advanced" id="persona-guardrails" tabIndex={-1}>
+              <summary><h2><SlidersHorizontal size={20} />Prompt guardrails</h2></summary>
+              <div className="persona-editor-detail grid two">
+                <label>Approved topics<input name="approvedTopics" defaultValue={listValue(persona.approvedTopics)} placeholder="AI automation, founder productivity" /></label>
+                <label>Off-limits topics<input name="offLimitsTopics" defaultValue={listValue(persona.offLimitsTopics)} placeholder="Politics, medical advice" /></label>
+                <label>Natural phrases<input name="naturalPhrases" defaultValue={listValue(persona.naturalPhrases)} placeholder="Here's the thing, Real talk" /></label>
+                <label>Banned vocabulary<input name="bannedVocabulary" defaultValue={listValue(persona.bannedVocabulary)} placeholder="synergy, disruptive" /></label>
+                <label className="persona-opinions-field">Strong opinions<textarea name="strongOpinions" defaultValue={persona.strongOpinions} placeholder="AI will not replace jobs - it replaces tasks." /></label>
+              </div>
+            </details>
       </fieldset></form></div>
     </div>
   );
