@@ -1,5 +1,11 @@
 # CABuild Project Handoff
 
+## 2026-11-18 — Always-visible Persona sections and inline media
+
+- Persona overview and editor now show writing/media/guardrails without disclosures. Writing appears as one unnumbered prose block; save normalization preserves commas, line breaks and complete text while retaining the legacy array schema. Missing overview values and empty media slots use `Empty`.
+- Public profiles use accessible logo-only links, with a larger image in a narrower, content-height identity card. Guardrail labels/values use consistent typography and a balanced two-column layout. Removed the enclosing editor form surface so only individual sections have borders.
+- Media uploads/replacements, previews, label editing and removal now live together in each role slot. Product photos still allow multiple assets. Upload errors retain existing assets and show inline; save/cancel/autofill are disabled during an upload to avoid saving before its reference arrives. Existing owner scope, source URLs, autofill and draft recovery remain.
+
 ## 2026-11-18 — Edit Persona hierarchy
 
 - Edit Persona follows the overview: larger profile image beside a wider core profile, prominent name/company inputs, then full-width audience and voice. Writing samples, media references and prompt guardrails expand independently; all fields remain in the form and serialize even while collapsed. Removed repeated sidebar identity/navigation and stale chip copies under editable fields.

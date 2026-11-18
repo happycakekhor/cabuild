@@ -12,6 +12,12 @@ function list(value: unknown, fallback: string[] = []) {
   return fallback;
 }
 
+// Writing is free-form prose: commas and line breaks are content, not list separators.
+// Retain the stored array shape so existing profiles and provider results remain compatible.
+export function normalizeWritingSamples(value: unknown): string[] {
+  return Array.isArray(value) ? list(value) : text(value) ? [text(value)] : [];
+}
+
 function mediaAssets(value: unknown): PersonaMediaAsset[] {
   if (!Array.isArray(value)) return [];
   return value
@@ -79,7 +85,7 @@ export function normalizePersonaProfile(workspaceId: string, input: PersonaInput
     approvedTopics: list(input.approvedTopics, ["AI automation"]),
     offLimitsTopics: list(input.offLimitsTopics),
     strongOpinions: text(input.strongOpinions),
-    writingSamples: list(input.writingSamples).slice(0, 3),
+    writingSamples: normalizeWritingSamples(input.writingSamples),
     sourceUrls: {
       linkedin: text(sourceUrls.linkedin),
       website: text(sourceUrls.website),

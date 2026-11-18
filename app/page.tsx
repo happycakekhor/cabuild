@@ -528,11 +528,14 @@ async function uploadReferenceFile(role: ReferenceRole, file: File): Promise<Gen
   };
 }
 
-function PersonaMediaLibrary({ assets, onChange }: { assets: PersonaMediaAsset[]; onChange: (assets: PersonaMediaAsset[]) => void }) {
+function PersonaMediaLibrary({ assets, onChange, onUploadingChange }: { assets: PersonaMediaAsset[]; onChange: (assets: PersonaMediaAsset[]) => void; onUploadingChange: (uploading: boolean) => void }) {
   const [uploadingRole, setUploadingRole] = useState<ReferenceRole | "">("");
+  const [uploadError, setUploadError] = useState<{ role: ReferenceRole; message: string } | null>(null);
   const addAsset = async (role: ReferenceRole, file?: File | null) => {
     if (!file?.name) return;
     setUploadingRole(role);
+    setUploadError(null);
+    onUploadingChange(true);
     try {
       const uploaded = await uploadReferenceFile(role, file);
       const asset: PersonaMediaAsset = {
@@ -547,39 +550,38 @@ function PersonaMediaLibrary({ assets, onChange }: { assets: PersonaMediaAsset[]
       };
       if (role === "logo" || role === "avatar/persona" || role === "audio") onChange([...assets.filter((item) => item.role !== role), asset]);
       else onChange([...assets, asset]);
+    } catch (error) {
+      setUploadError({ role, message: error instanceof Error ? error.message : "Upload failed. Please try again." });
     } finally {
       setUploadingRole("");
+      onUploadingChange(false);
     }
   };
   const updateLabel = (id: string, label: string) => onChange(assets.map((item) => item.id === id ? { ...item, label } : item));
   const remove = (id: string) => onChange(assets.filter((item) => item.id !== id));
   const roles: ReferenceRole[] = ["logo", "avatar/persona", "product photo", "audio"];
   return (
-    <div className="persona-media-library">
-      <div className="media-upload-row">
-        {roles.map((role) => (
-          <label className="upbox compact" key={role}>
-            <input type="file" accept={role === "audio" ? "audio/*" : "image/*"} onChange={(event) => void addAsset(role, event.currentTarget.files?.[0])} />
-            {role === "audio" ? <Mic size={17} /> : role === "logo" ? <Sparkles size={17} /> : role === "avatar/persona" ? <UserRound size={17} /> : <Palette size={17} />}
-            <b>{referenceLabelForRole(role)}</b>
-            <span>{uploadingRole === role ? "Uploading..." : role === "product photo" ? "Can add many" : "One default"}</span>
-          </label>
-        ))}
-      </div>
-      <div className="persona-media-list">
-        {assets.map((asset) => (
-          <div className="persona-media-item" key={asset.id}>
-            {asset.contentType?.startsWith("audio/") || asset.role === "audio" ? <div className="audio-chip"><Mic size={15} />Audio</div> : <img src={asset.url} alt={asset.label || asset.fileName} />}
-            <div>
-              <span>{referenceLabelForRole(asset.role)}</span>
-              <input aria-label={`${referenceLabelForRole(asset.role)} label`} value={asset.label} onChange={(event) => updateLabel(asset.id, event.target.value)} />
-              <small>{asset.fileName}</small>
-            </div>
-            <button type="button" onClick={() => remove(asset.id)}>Remove</button>
+    <div className="persona-media-library persona-media-slots">
+      {roles.map(role => {
+        const items = assets.filter(asset => asset.role === role);
+        const label = referenceLabelForRole(role);
+        return <section className="persona-media-slot" key={role} aria-label={`${label} reference`}>
+          <h3>{role === "audio" ? <Mic size={18} /> : role === "logo" ? <Sparkles size={18} /> : role === "avatar/persona" ? <UserRound size={18} /> : <Palette size={18} />}{role === "product photo" ? "Product photos" : label}</h3>
+          <div className="persona-slot-assets">
+            {items.map(asset => <div className="persona-media-item" key={asset.id}>
+              {asset.contentType?.startsWith("audio/") || asset.role === "audio" ? <audio controls preload="none" src={asset.url} aria-label={asset.label || asset.fileName} /> : <img src={asset.url} alt={asset.label || asset.fileName} />}
+              <label>Label<input aria-label={`${label} label`} value={asset.label} onChange={event => updateLabel(asset.id, event.target.value)} /></label>
+              <div className="persona-slot-file"><small>{asset.fileName}</small><button type="button" aria-label={`Remove ${asset.label || asset.fileName}`} onClick={() => remove(asset.id)}>Remove</button></div>
+            </div>)}
+            {!items.length && <div className="persona-slot-empty">Empty</div>}
           </div>
-        ))}
-        {assets.length === 0 && <div className="empty-state compact">No saved persona media yet. Add reusable logo, avatar, product photos, or audio references.</div>}
-      </div>
+          <label className="persona-slot-upload">
+            <input type="file" aria-label={`${items.length && role !== "product photo" ? "Replace" : "Upload"} ${label}`} accept={role === "audio" ? "audio/*" : "image/*"} onChange={event => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ""; void addAsset(role, file); }} />
+            {uploadingRole === role ? "Uploading…" : items.length ? role === "product photo" ? "Add photo" : "Replace" : "Upload"}
+          </label>
+          {uploadError?.role === role && <p role="alert" className="provider-error">{uploadError.message}</p>}
+        </section>;
+      })}
     </div>
   );
 }
@@ -588,6 +590,7 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
   const [mode, setMode] = useState<"preview" | "edit">("preview");
   const [editVersion, setEditVersion] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [mediaUploading, setMediaUploading] = useState(false);
   const [draftCompletion, setDraftCompletion] = useState<number | null>(null);
   const [showAutofill, setShowAutofill] = useState(false);
   const [autoFilling, setAutoFilling] = useState(false);
@@ -672,10 +675,10 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
           <span className="persona-save-hint">Changes apply when you save.</span>
           <div className="persona-profile-actions">
             <div className="profile-completion"><span>Profile completion<b>{draftCompletion ?? completion}%</b></span><progress value={draftCompletion ?? completion} max={100} aria-label="Profile completion" /></div>
-            <div className="row-actions"><button type="button" disabled={saving || autoFilling} onClick={cancelEdits}>Cancel</button><button className="primary" type="submit" disabled={saving || autoFilling}><Check size={16} />{saving ? "Saving…" : "Save persona"}</button></div>
+            <div className="row-actions"><button type="button" disabled={saving || autoFilling || mediaUploading} onClick={cancelEdits}>Cancel</button><button className="primary" type="submit" disabled={saving || autoFilling || mediaUploading}><Check size={16} />{saving ? "Saving…" : "Save persona"}</button></div>
           </div>
         </div>
-        <fieldset className="persona-edit-fields" disabled={saving || autoFilling}>
+        <fieldset className="persona-edit-fields" disabled={saving || autoFilling || mediaUploading}>
           <div className="persona-editor-top">
             <section className="persona-editor-image" aria-label="Profile image">
               <PersonaMark persona={{ ...persona, mediaAssets }} />
@@ -700,16 +703,16 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
                 <label>Content language<select name="contentLanguage" defaultValue={persona.contentLanguage}><option>English only</option><option>English + BM</option><option>English + Mandarin</option><option>Manglish</option><option>Multi-language</option></select></label>
               </div>
             </div>
-            <details className="persona-advanced" id="persona-writing">
-              <summary><h2><Pencil size={20} />Writing samples</h2></summary>
-              <div className="persona-editor-detail"><label>Examples of your writing<textarea name="writingSamples" defaultValue={listValue(persona.writingSamples)} placeholder="Paste up to 3 samples, separated by a blank line or comma." /></label></div>
-            </details>
-            <details className="persona-advanced" id="persona-media" tabIndex={-1}>
-              <summary><h2><ImageIcon size={20} />Media references</h2></summary>
-              <div className="persona-editor-detail"><PersonaMediaLibrary assets={mediaAssets} onChange={assets => { setMediaAssets(assets); onEditingChange(true); }} /></div>
-            </details>
-            <details className="persona-advanced" id="persona-guardrails" tabIndex={-1}>
-              <summary><h2><SlidersHorizontal size={20} />Prompt guardrails</h2></summary>
+            <section className="persona-advanced" id="persona-writing">
+              <h2 className="persona-section-title"><Pencil size={20} />Writing samples</h2>
+              <div className="persona-editor-detail"><label>Examples of your writing<textarea name="writingSamples" defaultValue={listValue(persona.writingSamples)} placeholder="Paste your writing here." /></label></div>
+            </section>
+            <section className="persona-advanced" id="persona-media" tabIndex={-1}>
+              <h2 className="persona-section-title"><ImageIcon size={20} />Media references</h2>
+              <div className="persona-editor-detail"><PersonaMediaLibrary assets={mediaAssets} onUploadingChange={setMediaUploading} onChange={assets => { setMediaAssets(assets); onEditingChange(true); }} /></div>
+            </section>
+            <section className="persona-advanced" id="persona-guardrails" tabIndex={-1}>
+              <h2 className="persona-section-title"><SlidersHorizontal size={20} />Prompt guardrails</h2>
               <div className="persona-editor-detail grid two">
                 <label>Approved topics<input name="approvedTopics" defaultValue={listValue(persona.approvedTopics)} placeholder="AI automation, founder productivity" /></label>
                 <label>Off-limits topics<input name="offLimitsTopics" defaultValue={listValue(persona.offLimitsTopics)} placeholder="Politics, medical advice" /></label>
@@ -717,7 +720,7 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
                 <label>Banned vocabulary<input name="bannedVocabulary" defaultValue={listValue(persona.bannedVocabulary)} placeholder="synergy, disruptive" /></label>
                 <label className="persona-opinions-field">Strong opinions<textarea name="strongOpinions" defaultValue={persona.strongOpinions} placeholder="AI will not replace jobs - it replaces tasks." /></label>
               </div>
-            </details>
+            </section>
       </fieldset></form></div>
     </div>
   );

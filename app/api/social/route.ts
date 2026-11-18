@@ -5,7 +5,7 @@ import { currentUser } from "@/lib/session";
 import { hasPermission } from "@/lib/permissions";
 import { defaultPersonaProfile, id, mutateDb } from "@/lib/store";
 import type { Asset, AutomationJob, AutomationRule, AutomationSourceRun, AutomationSourceWatcher, Brief, CompetitorResult, GenerationAssetReference, PersonaMediaAsset, PersonaProfile, Platform, PublishItem, ResearchScan } from "@/lib/types";
-import { appendPersonaContext, buildPersonaContext, normalizePersonaProfile } from "@/lib/persona";
+import { appendPersonaContext, buildPersonaContext, normalizePersonaProfile, normalizeWritingSamples } from "@/lib/persona";
 import { completeKeywordScanRun, completeSocialUrlScanRun, crawlPersonaSourcesWithApify, fetchTrendSignals, scanKeywordsWithApify, scanSocialUrl, startKeywordScanRun, startSocialUrlScanRun } from "@/lib/providers/apify";
 import { KieBriefError, buildAiBriefPrompt, buildContentPlanPrompt, buildFinalVideoPromptInstruction, generateContentPlanWithGemini, generateContentPlanWithGpt55, generateFinalVideoPromptWithGpt55, generateImage, generatePersonaAutofillWithGpt55, generateSeedanceVideo, generateVeoVideo, getMarketTask, getVeoVideo } from "@/lib/providers/kie";
 import { getConnectedUploadPostAccounts, publishPhotoPost, publishTextPost, publishVideoPost } from "@/lib/providers/uploadPost";
@@ -760,7 +760,7 @@ function personaFromBody(workspaceId: string, body: Record<string, unknown>, pre
     approvedTopics: listField(body, "approvedTopics", fallback.approvedTopics),
     offLimitsTopics: listField(body, "offLimitsTopics", fallback.offLimitsTopics),
     strongOpinions: stringField(body, "strongOpinions", fallback.strongOpinions),
-    writingSamples: listField(body, "writingSamples", fallback.writingSamples).slice(0, 3),
+    writingSamples: hasField(body, "writingSamples") ? normalizeWritingSamples(body.writingSamples) : fallback.writingSamples,
     sourceUrls: {
       linkedin: stringField(body, "linkedinUrl", fallback.sourceUrls.linkedin),
       website: stringField(body, "websiteUrl", fallback.sourceUrls.website),
