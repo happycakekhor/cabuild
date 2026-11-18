@@ -8,6 +8,7 @@ import "./settings.css";
 import "./desktop-workspace.css";
 import "./creator-visual.css";
 import "./creator-workspaces.css";
+import "./persona-overview.css";
 import "./green-accents.css";
 
 export const metadata: Metadata = {

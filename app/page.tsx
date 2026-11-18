@@ -649,7 +649,7 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
   };
   return (
     <div className="persona-page">
-      <CreatorPageHeader title={mode === "edit" ? "Edit Persona" : "Persona"} art="identity"><span className="last-upd">{data.personaProfile.updatedAt ? `Updated ${new Date(data.personaProfile.updatedAt).toLocaleString()}` : "Not saved yet"}</span>{mode === "preview" && <button id="edit-persona" type="button" className="primary" onClick={() => setMode("edit")}><Pencil size={16} />Edit persona</button>}
+      <CreatorPageHeader title={mode === "edit" ? "Edit Persona" : "Persona"} art="identity"><span className="last-upd">{data.personaProfile.updatedAt ? `Updated ${new Date(data.personaProfile.updatedAt).toLocaleString()}` : "Not saved yet"}</span>{mode === "preview" && <div className="persona-profile-actions"><div className="profile-completion"><span>Profile completion<b>{completion}%</b></span><progress value={completion} max={100} aria-label="Profile completion" /></div><button id="edit-persona" type="button" className="primary" onClick={() => setMode("edit")}><Pencil size={16} />Edit persona</button></div>}
       </CreatorPageHeader>
 
       {mode === "edit" && <p className="persona-edit-notice" role="status"><Pencil size={17} />Changes apply when you save.</p>}
@@ -668,7 +668,7 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
           <div className="dialog-actions"><button type="button" disabled={autoFilling} onClick={() => setShowAutofill(false)}>Cancel</button><button type="submit" className="primary" disabled={autoFilling}>{autoFilling ? <AnimatedDots label="Auto-filling persona" /> : "Auto-fill persona"}</button></div>
         </form>
       </ContentDialog>}
-      {mode === "preview" && <PersonaPreview persona={data.personaProfile} completion={completion} />}
+      {mode === "preview" && <PersonaPreview persona={data.personaProfile} />}
       <div hidden={mode !== "edit"} className="persona-edit-layout">
       <CreatorSectionNav label="Persona sections" sections={[{id:"persona-profile",label:"Core profile",icon:<UserRound size={18}/>},{id:"persona-voice",label:"Audience & voice",icon:<Megaphone size={18}/>},{id:"persona-media",label:"Media references",icon:<ImageIcon size={18}/>},{id:"persona-guardrails",label:"Prompt guardrails",icon:<SlidersHorizontal size={18}/>}]}><div className="editor-persona-identity"><PersonaMark persona={data.personaProfile}/><b>{data.personaProfile.displayName || "Your persona"}</b></div></CreatorSectionNav>
       <form key={(persona.updatedAt || "unsaved") + editVersion} onSubmit={event => { event.preventDefault(); void save(new FormData(event.currentTarget)); }} onChange={() => onEditingChange(true)} className="persona-setup"><fieldset className="persona-edit-fields" disabled={saving || autoFilling}>

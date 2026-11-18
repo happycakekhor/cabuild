@@ -1,5 +1,11 @@
 # CABuild Project Handoff
 
+## 2026-11-18 — Persona overview hierarchy
+
+- Persona now presents identity values once, with a larger image, prominent name/company/role and audience/voice near the top. Public-profile destinations appear once beneath the image; duplicate destinations are normalized and omitted from the repeated display only, without changing saved URLs. Completion is adjacent to Edit persona.
+- Prompt guardrails remain visible in a compact full-width section. Writing samples and reusable media use keyboard-accessible native disclosures with counts and retain complete saved content. Existing edit, save, autofill, reference upload/audio and failed-action recovery behavior is unchanged.
+- Design rationale and six-source research: docs/design/persona-hierarchy-2026-11-18.md. Preserves the latest brief-model/Kie balance-panel changes and shared palette. Local/independent UAT and release evidence are recorded in the persistent project log.
+
 ## 2026-11-17 — Brief model selection and Kie model balances
 
 - Generate Brief has a native bottom-left model selector (GPT-5.5 or Gemini3 Pro, both already integrated in CABUILD), with Generate Brief/Clear aligned right. Brief model is separate from the output image/video model; selection survives errors and Clear. Server validates the two-model allowlist before logging or provider spend, routes Gemini to its chat-completions endpoint, and retains the detailed sanitized diagnostics/retry policy for both models.
