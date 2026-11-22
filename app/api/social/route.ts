@@ -1405,13 +1405,13 @@ export async function POST(req: Request) {
         minViews: scan.minViews
       } as const;
       let completed = scan.query
-        ? await completeKeywordScanRun({ ...runMeta, contentType: scan.dimensions?.contentType || scan.dimensions?.contentTypes?.[0] || "", keywords: scan.query })
+        ? await completeKeywordScanRun({ ...runMeta, contentType: scan.dimensions?.contentType || scan.dimensions?.contentTypes?.[0] || "", keywords: scan.query, actorSources: scan.dimensions?.actorSources })
         : await completeSocialUrlScanRun(runMeta);
       if (completed.status === "running") return NextResponse.json(scan);
       let completedSource: ResearchScan["source"] = "apify";
       let completedError = "";
       const shouldTryKeywordFallback = Boolean(
-        scan.query &&
+        scan.query && (scan.dimensions?.actorSources?.length || 0) <= 1 &&
         (completed.items.length === 0 || (completed.items.length < 3 && ["Instagram", "Facebook", "LinkedIn"].includes(scan.platform)))
       );
       if (shouldTryKeywordFallback) {
@@ -1499,11 +1499,15 @@ export async function POST(req: Request) {
     const query = String(body.keywords || "").trim();
     const minViews = Number(body.minViews || 0);
     const dimensions = normalizeDimensions(body.dimensions);
-    const selectedSource = dimensions.actorSources[0] || "instagram";
+    const supportedSources = ["instagram", "tiktok", "youtube", "facebook", "linkedin"];
+    if (!dimensions.actorSources.length || dimensions.actorSources.includes("all")) dimensions.actorSources = supportedSources;
+    if (dimensions.actorSources.some(source => !supportedSources.includes(source))) return NextResponse.json({ error: "Choose a supported research platform" }, { status: 400 });
+    dimensions.actorSources = supportedSources.filter(source => dimensions.actorSources.includes(source));
+    const selectedSource = dimensions.actorSources.length > 1 ? "all" : dimensions.actorSources[0];
     dimensions.contentType = normalizeKeywordContentType(selectedSource, dimensions.contentType || dimensions.contentTypes[0] || "");
     dimensions.contentTypes = dimensions.contentType ? [dimensions.contentType] : [];
     if (!query) return NextResponse.json({ error: "Keywords are required" }, { status: 400 });
-    const cacheKey = `keyword:${query.toLowerCase()}|${JSON.stringify(dimensions)}|min:${minViews}|${keywordResearchCacheVersion}`;
+    const cacheKey = `keyword:${query.toLowerCase()}|${JSON.stringify(dimensions)}|min:${minViews}|${keywordResearchCacheVersion}${dimensions.actorSources.length > 1 ? "|multi-v1" : ""}`;
     const cached = await mutateDb((db) => {
       db.researchScans ||= [];
       db.competitorResults ||= [];

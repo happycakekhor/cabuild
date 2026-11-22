@@ -1,5 +1,12 @@
 # CABuild Project Handoff
 
+## 2026-11-22 — Research page scroll and All platforms default
+
+- Moved the unified search out of the global application header and directly after the shared Research title. Research's page-motion container owns vertical scrolling; the compact bar sticks within that area below the global header. Shared title component and typography remain; shared header contents align to the top so wrapping action controls no longer shift titles on mobile. Current-scroll preservation, keyboard clearance, complete history and back navigation now target the Research scroll area.
+- All platforms is the initial/reset keyword scope, covering Instagram, TikTok, YouTube, Facebook and LinkedIn. Specific sources remain selectable; URLs still use their own source. Multi-source saved searches reopen with All platforms and show a globe/aggregate scope instead of a misleading single-platform label.
+- API defaults missing/all scope to the five supported sources, validates/canonicalizes explicit sources, and separates the multi-source cache from older first-source behavior. Multi-source keywords use one asynchronous configured search-actor run with one site-scoped query per platform; polling/recovery preserve source domains, deduplicate URLs, retain actual returned metrics, and apply minimum views without inventing counts. Missing view counts normalize to zero and do not pass a positive minimum. Single-source actors retain their existing flow. All-platform content type stays All types because the currently exposed narrower types are platform-specific.
+- No-spend checks: research-all-platforms adapter lifecycle/transport fixtures, research-history-api default/cache/sync/owner isolation, research-minimal shared-title order/own scroll/default five-source payload, and history/content/persona regressions. Release and independent UAT evidence is recorded in the persistent project log.
+
 ## 2026-11-22 — Minimal unified Research bar
 
 - Replaced URL/keyword mode buttons and the large search card with a single URL-or-keyword input, Filters toggle immediately before Search, and compact scope summary. Native Enter submits; schemeless social URLs normalize to HTTPS, malformed URLs and invalid minimum views never fall through to a paid keyword request. Keyword phrases containing a colon remain keywords.

@@ -48,7 +48,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
   await page.locator('#research-entry-saved-2').click();await page.getByRole('button',{name:'Back to history'}).waitFor();await settle();
   assert.equal(await page.locator('.research-recent').count(),0);assert.equal(await page.locator('.result-row').count(),1);
   assert(await page.getByLabel('URL or keywords',{exact:true}).evaluate((e,old)=>e===old,input),'Form never remounts when opening a result');
-  await page.locator('.main').evaluate(e=>e.scrollTop=e.scrollHeight);await dockVisible();await fits();
+  await page.locator('.research-screen > .page-motion').evaluate(e=>e.scrollTop=e.scrollHeight);await dockVisible();await fits();
   await page.getByRole('button',{name:'Back to history'}).click();await page.locator('.research-recent').waitFor();
   assert(['research-entry-saved-2','research-query'].includes(await page.evaluate(()=>document.activeElement.id)),'Back restores visible focus without scrolling');
   await page.goForward();await page.locator('.saved-search-summary').waitFor();await page.reload();await page.locator('.saved-search-summary').waitFor();

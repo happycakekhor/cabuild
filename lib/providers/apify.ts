@@ -615,6 +615,14 @@ export async function startSocialUrlScanRun(url: string, minViews: number): Prom
 
 export async function startKeywordScanRun(keywords: string, dimensions: KeywordDimensions, minViews: number): Promise<ResearchRunMeta & { contentType: string }> {
   if (!(await hasApify())) throw new Error("APIFY_API_TOKEN is not configured.");
+  if ((dimensions.actorSources?.length || 0) > 1) {
+    const actorId = process.env.APIFY_KEYWORD_ACTOR_ID || process.env.APIFY_ACTOR_ID || "apify/google-search-scraper";
+    const run = await startApifyActor(actorId, {
+      queries: keywordSearchQueries(keywords, dimensions.actorSources!, dimensions.uploadDate || "", dimensions.contentType || ""),
+      maxPagesPerQuery: 2, resultsPerPage: 10, countryCode: "us", languageCode: "en"
+    });
+    return { actorId, ...run, source: selectedSource(dimensions), fallbackUrl: "", minViews, contentType: dimensions.contentType || "" };
+  }
   const source = selectedSource(dimensions);
   const actorId = sourceKeywordActorId(source);
   if (!actorId) throw new Error(`No Apify actor configured for ${source}.`);
@@ -639,7 +647,15 @@ export async function completeSocialUrlScanRun(meta: ResearchRunMeta) {
   };
 }
 
-export async function completeKeywordScanRun(meta: ResearchRunMeta & { contentType?: string; keywords?: string }) {
+export async function completeKeywordScanRun(meta: ResearchRunMeta & { contentType?: string; keywords?: string; actorSources?: string[] }) {
+  if ((meta.actorSources?.length || 0) > 1) {
+    const { text } = await fetchWithApifyToken(token => `https://api.apify.com/v2/actor-runs/${meta.runId}?token=${token}`, { cache: "no-store" }, "Apify multi-platform run status");
+    const status = (JSON.parse(text) as { data?: { status?: string } }).data?.status;
+    if (["READY", "RUNNING"].includes(status || "")) return { status: "running" as const, items: [] as NormalizedSocialItem[] };
+    if (status !== "SUCCEEDED") throw new Error(`Apify run ended with status ${status || "unknown"}.`);
+    const { text: itemsText } = await fetchWithApifyToken(token => `https://api.apify.com/v2/datasets/${meta.datasetId}/items?token=${token}&clean=true`, { cache: "no-store" }, "Apify multi-platform results");
+    return { status: "done" as const, items: normalizeMultiPlatformItems(JSON.parse(itemsText), meta.actorSources!, meta.keywords || "", meta.minViews, meta.contentType) };
+  }
   const completed = await completeSocialUrlScanRun(meta);
   if (completed.status === "running") return completed;
   const filtered = completed.items
@@ -649,6 +665,24 @@ export async function completeKeywordScanRun(meta: ResearchRunMeta & { contentTy
     status: "done" as const,
     items: filtered
   };
+}
+
+/** Preserve actual source platforms and metrics when one search run spans several sites. */
+function normalizeMultiPlatformItems(items: ApifySearchItem[], sources: string[], keywords: string, minViews: number, contentType = "") {
+  const seen = new Set<string>();
+  const domains: Record<string, string[]> = { instagram: ["instagram.com"], tiktok: ["tiktok.com"], youtube: ["youtube.com", "youtu.be"], facebook: ["facebook.com", "fb.watch"], linkedin: ["linkedin.com"] };
+  return items.flatMap(item => item.organicResults || item.nonPromotedSearchResults || [item as Record<string, unknown>])
+    .map((item, index) => normalizeSocialItem(item, index))
+    .filter(item => {
+      let host = "";
+      try { host = new URL(item.sourceUrl).hostname.toLowerCase(); } catch { return false; }
+      const source = sources.find(source => domains[source]?.some(domain => host === domain || host.endsWith(`.${domain}`)));
+      if (!source) return false;
+      item.platform = sourcePlatform(source as ActorSource);
+      if (seen.has(item.sourceUrl) || item.views < minViews || !matchesContentType(item, contentType) || !matchesKeywordIntent(item, keywords)) return false;
+      seen.add(item.sourceUrl);
+      return true;
+    });
 }
 
 function matchesContentType(item: NormalizedSocialItem, contentType = "") {
@@ -711,7 +745,7 @@ export async function scanKeywordsWithApify(keywords: string, dimensions: Keywor
   const actorId = sourceKeywordActorId(source);
   const uploadDate = dimensions.uploadDate || "";
   const contentType = dimensions.contentType || dimensions.contentTypes?.[0] || "";
-  if (actorId && !options.skipPlatformActor) {
+  if (actorId && !options.skipPlatformActor && (dimensions.actorSources?.length || 0) <= 1) {
     try {
       const actorItems = await runApifyActor(actorId, platformSearchInput(source, keywords, uploadDate, contentType));
       const directItems = normalizeActorItems(actorItems, source, minViews, "", contentType).filter((item) => matchesKeywordIntent(item, keywords));
@@ -760,6 +794,7 @@ export async function scanKeywordsWithApify(keywords: string, dimensions: Keywor
     })
   }, "Apify keyword scan");
   const items = JSON.parse(text) as ApifySearchItem[];
+  if (actorSources.length > 1) return normalizeMultiPlatformItems(items, actorSources, keywords, minViews, contentType);
   const baseViews = Math.max(minViews, 10000);
   const directItems = (items as unknown as Array<Record<string, unknown>>)
     .filter((item) => !Array.isArray(item.organicResults) && !Array.isArray(item.nonPromotedSearchResults))

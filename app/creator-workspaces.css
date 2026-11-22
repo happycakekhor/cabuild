@@ -1,5 +1,5 @@
 /* Workflow-specific layouts. Research and decisions: docs/design/content-creator-research-2026-11-15.md */
-.app-shell .normal-workspace-frame .creator-page-header { border-bottom:0; padding-bottom:8px; }
+.app-shell .normal-workspace-frame .creator-page-header { border-bottom:0; padding-bottom:8px; align-items:flex-start; align-content:flex-start; }
 .app-shell .normal-workspace-frame .creator-page-mark { width:48px; height:48px; border-radius:14px; box-shadow:none; }
 .app-shell .normal-workspace-frame .creator-page-header h1 { font-size:27px; letter-spacing:-.8px; }
 .normal-workspace-frame :is(.persona-preview,.persona-edit-layout,.creation-studio,.research-recent,.automation-overview,.audit-account-strip,.production-pipeline) { min-width:0; }
@@ -65,10 +65,11 @@
 .research-search-entry>svg { flex-shrink:0; }
 .research-search-entry .history-entry-status { font-size:11px; padding:3px 8px; }
 .research-recent-empty { color:var(--creator-muted); font-size:13px; line-height:1.6; margin:14px 0; }
-/* Compact search lives in the application header, outside the scrolling page. */
-.app-shell > .main:has(.research-page) { scroll-padding-top:var(--research-scroll-offset, 180px); overflow-anchor:none; }
-.app-shell .topbar:has(#research-search-host) { background:var(--panel); }
-.research-unified-dock { padding:10px 32px 8px; border-bottom:1px solid var(--line); color:var(--text); background:var(--panel); }
+/* Research owns its scroll area; the shared page title precedes its sticky search. */
+.app-shell > .main.research-screen { display:flex; flex-direction:column; overflow:hidden; scrollbar-gutter:auto; }
+.research-screen > .topbar { flex-shrink:0; }
+.research-screen > .page-motion { flex:1; min-height:0; overflow:auto; scrollbar-gutter:stable; scroll-padding-top:var(--research-scroll-offset,110px); overflow-anchor:none; }
+.research-unified-dock { position:sticky; top:0; z-index:25; padding:10px 0 8px; border-bottom:1px solid var(--line); color:var(--text); background:var(--bg); }
 .research-unified-form { display:grid; gap:4px; margin:0; }
 .research-query-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:8px; }
 .research-query-field { min-width:0; display:flex; align-items:center; gap:8px; padding:0 12px; border:1px solid var(--line-2); border-radius:12px; background:var(--bg); }
@@ -84,8 +85,8 @@
 .research-filter-count { display:inline-grid; place-items:center; min-width:18px; height:18px; padding:0 4px; border-radius:20px; background:var(--green-ink); color:var(--panel); font-size:11px; }
 .research-scope-line { min-width:0; min-height:24px; display:flex; align-items:center; gap:8px; }
 .research-scope-line p { min-width:0; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; line-height:20px; color:var(--muted); }
-.research-unified-dock .research-reset { min-height:24px; width:24px; padding:4px; border:0; background:transparent; flex-shrink:0; color:var(--green-ink); }
-.research-filter-panel { max-height:min(320px,calc(100dvh - var(--research-global-height,72px) - 116px)); overflow:auto; overscroll-behavior:contain; padding:12px 4px 4px; border-top:1px solid var(--line); }
+.app-shell .normal-workspace-frame .research-unified-dock .research-reset { min-height:24px; width:24px; padding:4px; border:0; background:transparent; flex-shrink:0; color:var(--green-ink); }
+.research-filter-panel { max-height:min(260px,calc(100dvh - var(--research-global-height,72px) - 200px)); overflow:auto; overscroll-behavior:contain; padding:12px 4px 4px; border-top:1px solid var(--line); }
 .research-filter-panel[hidden] { display:none; }
 .research-filter-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
 .research-filter-grid label { min-width:0; display:grid; gap:6px; font-size:12px; font-weight:600; }
@@ -96,8 +97,6 @@
 .research-history-status { color:var(--creator-muted); font-size:13px; margin:0; }
 .research-search-entry:disabled { opacity:1; cursor:wait; }
 .research-search-list:focus-visible, #research-history-heading:focus-visible, #research-result-heading:focus-visible { outline:2px solid var(--creator-green); outline-offset:2px; }
-@media(max-width:1250px) { .research-unified-dock { padding-inline:24px; } }
-@media(max-width:1000px) { .research-unified-dock { padding-inline:16px; } }
 @media(max-width:600px) {
  .research-filter-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
  .research-query-row { gap:6px; }

@@ -22,11 +22,13 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
  const views={persona:'Persona',research:'Research',create:'My Contents',publish:'My Contents',automation:'Automation',audit:'Social Audit',analyse:'Analyze',logs:'Logs'};
  fs.mkdirSync('.playwright-mcp',{recursive:true});
  for(const width of [1440,768,390,320]){
+  let headingMetrics;
   await page.setViewportSize({width,height:1000});
   for(const [view,title] of Object.entries(views)){
    const response=await page.goto(base+'/?view='+view);assert.equal(response.status(),200);
    await page.getByRole('heading',{name:title,exact:true,level:1}).waitFor();
    await page.evaluate(()=>Promise.all(document.getAnimations().map(a=>a.finished.catch(()=>{}))));
+   const metrics=await page.locator('.creator-page-header h1').evaluate(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return{x:r.x,y:r.y,font:s.fontSize,line:s.lineHeight,weight:s.fontWeight}});if(headingMetrics)assert.deepEqual(metrics,headingMetrics,'Consistent page title '+view+' at '+width);else headingMetrics=metrics;
    assert.equal(await page.locator('.creator-page-mark svg').count(),1,view+' page mark');
    assert.equal(await page.locator('.creator-page-header p,.creator-page-header .page-intro-kicker').count(),0,'Essential header copy only');
    const overflow=await page.locator('.main').evaluate(e=>({client:e.clientWidth,scroll:e.scrollWidth,body:document.documentElement.scrollWidth,viewport:innerWidth}));
@@ -50,9 +52,9 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
  }
  data.personaProfile.displayName='Studio North';
  await page.setViewportSize({width:1440,height:1000});await page.goto(base+'/?view=research');
- await page.getByRole('button',{name:'Search by keywords',exact:true}).click();
- const tiktok=page.getByRole('button',{name:'TikTok',exact:true});await tiktok.focus();await page.keyboard.press('Enter');assert.equal(await tiktok.getAttribute('aria-pressed'),'true');
- assert(await tiktok.evaluate(el=>el===document.activeElement&&getComputedStyle(el).outlineStyle!=='none'),'Visible keyboard focus');
+ await page.getByRole('button',{name:'Filters',exact:true}).click();
+ const platform=page.getByRole('combobox',{name:/Platform/});await platform.focus();await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');assert.equal(await platform.inputValue(),'instagram');
+ assert(await platform.evaluate(el=>el===document.activeElement&&getComputedStyle(el).outlineStyle!=='none'),'Visible keyboard focus');
  await page.goto(base+'/?view=create');await page.locator('.create-page').waitFor();
  const prompt=page.getByRole('textbox',{name:'Generation prompt',exact:true});await prompt.fill('Keep this unsaved draft');const node=await prompt.elementHandle();
  await page.getByRole('button',{name:'Image',exact:true}).click();assert.equal(await prompt.inputValue(),'Keep this unsaved draft');assert(await prompt.evaluate((el,original)=>el===original,node),'Format switch preserves DOM field');
