@@ -1374,7 +1374,6 @@ export async function POST(req: Request) {
         error: startError
       };
       db.researchScans.push(created);
-      db.researchScans = db.researchScans.filter((item) => item.workspaceId !== workspaceId).concat(db.researchScans.filter((item) => item.workspaceId === workspaceId).slice(-10));
       db.activity.push({ id: id("act"), workspaceId, message: runMeta ? `Research scan started for ${handleFromUrl(url)} using Apify. You can leave Research and come back later.` : `Research scan failed to start for ${handleFromUrl(url)}.`, createdAt: new Date().toISOString() });
       return created;
     });
@@ -1564,7 +1563,6 @@ export async function POST(req: Request) {
             error: startError ? `${startError}; broader Apify keyword fallback used.` : "Broader Apify keyword fallback used."
           };
           db.researchScans.push(created);
-          db.researchScans = db.researchScans.filter((item) => item.workspaceId !== workspaceId).concat(db.researchScans.filter((item) => item.workspaceId === workspaceId).slice(-10));
           db.activity.push({ id: id("act"), workspaceId, message: `Keyword research completed for "${query}" using fallback search.`, createdAt: new Date().toISOString() });
           return created;
         });
@@ -1594,7 +1592,6 @@ export async function POST(req: Request) {
         error: startError
       };
       db.researchScans.push(created);
-      db.researchScans = db.researchScans.filter((item) => item.workspaceId !== workspaceId).concat(db.researchScans.filter((item) => item.workspaceId === workspaceId).slice(-10));
       db.activity.push({ id: id("act"), workspaceId, message: runMeta ? `Keyword research started for "${query}" using Apify. You can leave Research and come back later.` : `Keyword research failed to start for "${query}".`, createdAt: new Date().toISOString() });
       return created;
     });

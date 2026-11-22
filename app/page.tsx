@@ -726,11 +726,22 @@ function PersonaPanel({ data, run, onEditingChange }: { data: AppData; run: (a: 
   );
 }
 
+// Keep pending syncs across Research navigation; never share them between workspaces.
+const researchScanSyncs = new Map<string, Promise<unknown>>();
+function syncResearchScanOnce(workspaceId: string, id: string) {
+  const key = `${workspaceId}:${id}`;
+  let request = researchScanSyncs.get(key);
+  if (!request) {
+    request = post("syncResearchScan", { id }).catch(() => null).finally(() => researchScanSyncs.delete(key));
+    researchScanSyncs.set(key, request);
+  }
+  return request;
+}
+
 function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { data: AppData; run: (a: string, p?: Record<string, unknown>, m?: string) => Promise<any>; refresh: () => Promise<void>; setDirectCreateInitial: (initial: CreateContentInitial) => void }) {
   const [searchMode, setSearchMode] = useState<"url" | "keywords">("url");
   const [sortBy, setSortBy] = useState<"views" | "likes" | "date">("views");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [researchView, setResearchView] = useState<"history" | "search" | "results">("search");
   const [resultFilters, setResultFilters] = useState({ minViews: "", maxViews: "", minLikes: "", maxLikes: "" });
   const [searchUrl, setSearchUrl] = useState("");
   const [searchMinViews, setSearchMinViews] = useState("0");
@@ -739,10 +750,17 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
   const [actorSource, setActorSource] = useState("instagram");
   const [contentType, setContentType] = useState("");
   const [uploadDate, setUploadDate] = useState("");
-  const [scanStatus, setScanStatus] = useState<"url" | "keywords" | null>(null);
   const [pendingScan, setPendingScan] = useState<"url" | "keywords" | null>(null);
-  const [scanStartedAt, setScanStartedAt] = useState<number | null>(null);
-  const [scanElapsed, setScanElapsed] = useState(0);
+  const [startingScan, setStartingScan] = useState<AppData["researchScans"][number] | null>(null);
+  const [scanError, setScanError] = useState("");
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+  const submissionLock = useRef(false);
+  const historyScroll = useRef(0);
+  const historyMainScroll = useRef(0);
+  const lastOpenedScan = useRef<string | null>(null);
+  const searchDock = useRef<HTMLElement>(null);
+  const researchView = activeScanId ? "results" : "history";
   const [sourcePreview, setSourcePreview] = useState<SourceMediaPreview | null>(null);
   const activeScan = data.researchScans.find((scan) => scan.id === activeScanId);
   const availableContentTypes = useMemo(
@@ -752,7 +770,7 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
     ],
     [actorSource]
   );
-  const activeScanStatus = scanStatus || pendingScan || (activeScan?.status === "running" ? (activeScan.query ? "keywords" : "url") : null);
+  const activeScanStatus = activeScan?.status === "running" ? (activeScan.query ? "keywords" : "url") : null;
   const visibleResults = activeScan
     ? data.competitorResults.filter((item) => activeScan.resultIds.includes(item.id))
     : [];
@@ -771,41 +789,75 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
   const totalViews = sortedResults.reduce((sum, item) => sum + item.views, 0);
   const topResult = sortedResults[0];
   useEffect(() => {
-    if (!activeScanStatus) {
-      setScanElapsed(0);
-      return;
+    const syncLocation = () => setActiveScanId(new URLSearchParams(window.location.search).get("researchScan"));
+    syncLocation();
+    window.addEventListener("popstate", syncLocation);
+    return () => window.removeEventListener("popstate", syncLocation);
+  }, []);
+  useEffect(() => {
+    const dock = searchDock.current;
+    const main = dock?.closest<HTMLElement>(".main");
+    const header = main?.querySelector<HTMLElement>(".topbar");
+    if (!dock || !main || !header) return;
+    const measure = () => {
+      main.style.setProperty("--research-header-height", `${header.offsetHeight}px`);
+      main.style.setProperty("--research-scroll-offset", `${header.offsetHeight + dock.offsetHeight + 24}px`);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(dock); observer.observe(header); measure();
+    return () => { observer.disconnect(); main.style.removeProperty("--research-header-height"); main.style.removeProperty("--research-scroll-offset"); };
+  }, []);
+  useEffect(() => {
+    const list = document.getElementById("research-history-list");
+    if (list) list.scrollTop = historyScroll.current;
+    if (list && lastOpenedScan.current) {
+      const main = list.closest<HTMLElement>(".main");
+      if (main) main.scrollTop = historyMainScroll.current;
     }
-    const startedAt = scanStartedAt || (activeScan?.status === "running" ? new Date(activeScan.createdAt).getTime() : Date.now());
-    const tick = () => setScanElapsed(Math.max(1, Math.floor((Date.now() - startedAt) / 1000)));
-    tick();
-    const timer = window.setInterval(tick, 1000);
-    return () => window.clearInterval(timer);
-  }, [activeScanStatus, scanStartedAt, activeScan?.createdAt, activeScan?.status]);
+    const target = activeScanId ? document.getElementById("research-result-heading") : lastOpenedScan.current ? document.getElementById(`research-entry-${lastOpenedScan.current}`) : null;
+    target?.focus({ preventScroll: true });
+    if (activeScanId) {
+      document.getElementById("research-back")?.scrollIntoView({ block: "start" });
+      setResultFilters({ minViews: "", maxViews: "", minLikes: "", maxLikes: "" });
+    }
+  }, [activeScanId]);
   useEffect(() => {
     if (contentType && !availableContentTypes.some((item) => item.id === contentType)) setContentType("");
   }, [actorSource, availableContentTypes, contentType]);
+  const runningScanIds = JSON.stringify(data.researchScans.filter(scan => scan.status === "running").map(scan => scan.id).sort());
   useEffect(() => {
-    if (!activeScan || activeScan.status !== "running") return;
+    const ids: string[] = JSON.parse(runningScanIds);
+    if (!ids.length) return;
     let cancelled = false;
+    let timer: number;
     const sync = async () => {
-      await post("syncResearchScan", { id: activeScan.id }).catch(() => null);
-      if (!cancelled) await refresh();
+      await Promise.all(ids.map(id => syncResearchScanOnce(data.workspace.id, id)));
+      if (cancelled) return;
+      await refreshRef.current().catch(() => null);
+      if (!cancelled) timer = window.setTimeout(sync, 7000);
     };
     void sync();
-    const timer = window.setInterval(sync, 7000);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      window.clearTimeout(timer);
     };
-  }, [activeScan?.id, activeScan?.status, refresh]);
+  }, [runningScanIds, data.workspace.id]);
   const openScan = (id: string) => {
+    historyScroll.current = document.getElementById("research-history-list")?.scrollTop || 0;
+    historyMainScroll.current = searchDock.current?.closest<HTMLElement>(".main")?.scrollTop || 0;
+    lastOpenedScan.current = id;
+    const url = new URL(window.location.href);
+    url.searchParams.set("researchScan", id);
+    window.history.pushState({ ...window.history.state, researchEntry: true }, "", url);
     setActiveScanId(id);
     setResultFilters({ minViews: "", maxViews: "", minLikes: "", maxLikes: "" });
-    setResearchView("results");
   };
-  const newSearch = () => {
-    setActiveScanId(null); setSearchUrl(""); setKeywordText(""); setSearchMinViews("0");
-    setActorSource("instagram"); setContentType(""); setUploadDate(""); setResearchView("search");
+  const showHistory = (replace = false) => {
+    if (!replace && window.history.state?.researchEntry) { window.history.back(); return; }
+    const url = new URL(window.location.href);
+    url.searchParams.delete("researchScan");
+    window.history.replaceState({ ...window.history.state, researchEntry: false }, "", url);
+    setActiveScanId(null);
   };
   const editSearch = () => {
     if (!activeScan) return;
@@ -814,41 +866,45 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
     setSearchMinViews(String(activeScan.minViews));
     setActorSource(activeScan.dimensions?.actorSources?.[0] || "instagram");
     setContentType(activeScan.dimensions?.contentType || activeScan.dimensions?.contentTypes?.[0] || "");
-    setUploadDate(activeScan.dimensions?.uploadDate || ""); setActiveScanId(null); setResearchView("search");
+    setUploadDate(activeScan.dimensions?.uploadDate || "");
+    window.requestAnimationFrame(() => searchDock.current?.querySelector<HTMLInputElement>("input")?.focus());
   };
-  const scanUrl = async (form: FormData) => {
+  const startScan = async (mode: "url" | "keywords", payload: Record<string, unknown>) => {
+    if (submissionLock.current) return;
+    submissionLock.current = true;
+    const optimistic: AppData["researchScans"][number] = {
+      id: "starting-search",
+      url: mode === "url" ? String(payload.url) : `keyword:${payload.keywords}`,
+      query: mode === "keywords" ? String(payload.keywords) : undefined,
+      dimensions: mode === "keywords" ? payload.dimensions as AppData["researchScans"][number]["dimensions"] : undefined,
+      platform: mode === "keywords" ? actorSource as AppData["researchScans"][number]["platform"] : "Instagram",
+      minViews: Number(payload.minViews || 0), resultIds: [], createdAt: new Date().toISOString(), status: "running", source: "apify"
+    };
     flushSync(() => {
-      setPendingScan("url");
-      setScanStatus("url");
-      setScanStartedAt(Date.now());
+      setPendingScan(mode); setStartingScan(optimistic); setScanError("");
+      lastOpenedScan.current = null; historyScroll.current = 0; showHistory(true);
     });
+    const history = document.getElementById("research-history-heading");
+    history?.focus({ preventScroll: true }); history?.scrollIntoView({ block: "start" });
+    const list = document.getElementById("research-history-list");
+    if (list) list.scrollTop = 0;
     try {
-      const result = await run("scanResearchUrl", Object.fromEntries(form.entries()), "Research scan started. You can leave and come back later.");
-      if (result?.id) openScan(result.id);
+      const result = await run(mode === "url" ? "scanResearchUrl" : "scanKeywordResearch", payload, "Search saved in Recent searches. You can leave and come back later.");
+      if (!result?.id) setScanError("We couldn’t start this search. Your search details are still above; try again.");
+    } catch {
+      setScanError("We couldn’t confirm this search. Refresh history before retrying to avoid starting it twice.");
     } finally {
-      setScanStatus(null);
-      setPendingScan(null);
-      setScanStartedAt(null);
+      submissionLock.current = false;
+      setPendingScan(null); setStartingScan(null);
     }
   };
+  const scanUrl = (form: FormData) => startScan("url", Object.fromEntries(form.entries()));
   const scanKeywords = async (form: FormData) => {
-    flushSync(() => {
-      setPendingScan("keywords");
-      setScanStatus("keywords");
-      setScanStartedAt(Date.now());
-    });
-    try {
-      const result = await run("scanKeywordResearch", {
+    await startScan("keywords", {
         keywords: keywordText,
         minViews: Number(form.get("minViews") || 0),
         dimensions: { actorSources: [actorSource], contentType, contentTypes: contentType ? [contentType] : [], uploadDate }
-      }, "Keyword research complete");
-      if (result?.id) openScan(result.id);
-    } finally {
-      setScanStatus(null);
-      setPendingScan(null);
-      setScanStartedAt(null);
-    }
+      });
   };
   const generateContentFromResearch = (item: CompetitorResult) => {
     setDirectCreateInitial(createInitialFromResearchResult(item, data.promptTemplates));
@@ -866,82 +922,49 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
   };
   const selectedActor = researchActors.find((item) => item.id === actorSource);
   const selectedContentType = availableContentTypes.find((item) => item.id === contentType);
-  const historyScans = data.researchScans.filter(scan => scan.status !== "failed");
+  const historyScans = [...data.researchScans].sort((a,b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   const scanLabel = (scanItem: AppData["researchScans"][number]) => scanItem.query || (scanItem.url.startsWith("keyword:") ? scanItem.url.split("|")[0].replace("keyword:", "") : scanItem.url);
   return (
     <ResearchMotion viewKey={`${researchView}:${searchMode}:${activeScanId || ""}`}>
       {sourcePreview && <SourceMediaPreviewPanel source={sourcePreview} onClose={() => setSourcePreview(null)} />}
-      <CreatorPageHeader title="Research" art="research">
-        <div className="research-navigation">
-          {researchView !== "search" && <button className="primary" onClick={newSearch} disabled={!!pendingScan}><Search size={16} />Search</button>}
-        </div>
-      </CreatorPageHeader>
-      {researchView === "history" && <section className="research-history research-search-history">
-        <div className="research-head"><h2><Clock3 size={19} aria-hidden="true" />Research history</h2><button onClick={() => void refresh()}><RefreshCcw size={16} />Refresh history</button></div>
-        <div className="research-history-list research-search-list">
-          {[...historyScans].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(scan => <ResearchSearchEntry key={scan.id} scan={scan} label={scanLabel(scan)} onOpen={openScan} history />)}
-          {!historyScans.length && <div className="empty-state"><Search size={32} aria-hidden="true" /><h3>No saved searches</h3><button className="primary" onClick={newSearch}>Start a search</button></div>}
-        </div>
-      </section>}
-      {researchView === "results" && activeScan && <section className="research-card saved-search-summary">
-        <div className="research-head"><div><span className="clbl">{activeScan.query ? "Keyword search" : "URL search"}</span><h2>{scanLabel(activeScan)}</h2><p>{new Date(activeScan.createdAt).toLocaleString()} · {activeScan.dimensions?.actorSources?.join(", ") || activeScan.platform}</p></div><button onClick={editSearch} disabled={activeScan.status === "running"}>Edit search</button></div>
-        <div className="saved-search-filters"><span>Minimum views: {compact(activeScan.minViews)}</span><span>Type: {activeScan.dimensions?.contentType || activeScan.dimensions?.contentTypes?.join(", ") || "All types"}</span><span>Upload date: {activeScan.dimensions?.uploadDate?.replaceAll("-", " ") || "Any time"}</span></div>
-        {activeScan.status === "failed" && <p className="provider-error" role="alert">Search failed: {activeScan.error || "The provider could not complete this search. Edit the search to try again."}</p>}
-        {activeScan.status !== "failed" && activeScan.error && <p className="provider-error">{activeScan.error}</p>}
-        {activeScan.source === "fallback" && <p className="muted">Fallback results</p>}
-      </section>}
-      {researchView === "results" && <div className="research-kpis">
-
-        <Metric label="Tracked sources" value={data.competitors.length} />
-        <Metric label="Qualified results" value={sortedResults.length} />
-        <Metric label="Total views" value={compact(totalViews)} />
-        <Metric label="Top post" value={topResult ? compact(topResult.views) : "-"} />
-      </div>}
-
-      {researchView === "search" && <div className="research-search-layout"><section className={`research-card research-search-workspace ${activeScanStatus ? "loading" : ""}`}>
+      <CreatorPageHeader title="Research" art="research" />
+      <div className="research-search-layout"><section ref={searchDock} className="research-card research-search-workspace research-search-dock" aria-label="Search research">
         <div className="research-mode">
           <button aria-pressed={searchMode === "url"} className={searchMode === "url" ? "on" : ""} onClick={() => setSearchMode("url")}><Radar size={14} />Search by URL</button>
           <button aria-pressed={searchMode === "keywords"} className={searchMode === "keywords" ? "on" : ""} onClick={() => setSearchMode("keywords")}><Search size={14} />Search by keywords</button>
         </div>
         {searchMode === "url" ? (
-          <form onSubmit={(event) => { event.preventDefault(); if (!activeScanStatus) void scanUrl(new FormData(event.currentTarget)); }} className="research-form">
+          <form onSubmit={(event) => { event.preventDefault(); if (!pendingScan) void scanUrl(new FormData(event.currentTarget)); }} className="research-form">
             <label>Social URL<input name="url" value={searchUrl} onChange={event => setSearchUrl(event.target.value)} type="url" placeholder="LinkedIn profile/page, TikTok, Instagram, YouTube, Facebook, or X URL" required /></label>
             <label>Minimum views<input name="minViews" type="number" min="0" step="1" value={searchMinViews} onChange={event => setSearchMinViews(event.target.value)} /></label>
             <button
-              type="button"
+              type="submit"
               className="primary"
-              disabled={activeScanStatus !== null}
-              aria-busy={activeScanStatus === "url"}
-              onClick={(event) => {
-                const form = event.currentTarget.form;
-                if (!form || activeScanStatus) return;
-                if (!form.reportValidity()) return;
-                void scanUrl(new FormData(form));
-              }}
+              disabled={pendingScan !== null}
+              aria-busy={pendingScan === "url"}
             >
-              <Search size={14} />{activeScanStatus === "url" ? "Searching..." : "Search"}
+              <Search size={14} />{pendingScan === "url" ? "Searching..." : "Search"}
             </button>
           </form>
         ) : (
-          <form onSubmit={(event) => { event.preventDefault(); if (!activeScanStatus) void scanKeywords(new FormData(event.currentTarget)); }} className="keyword-form">
+          <form onSubmit={(event) => { event.preventDefault(); if (!pendingScan) void scanKeywords(new FormData(event.currentTarget)); }} className="keyword-form">
             <div className="keyword-input-row">
               <label>Keywords<input name="keywords" value={keywordText} onChange={(event) => setKeywordText(event.target.value)} placeholder="Enter keywords, e.g. sheila majid" required /></label>
               <label>Minimum views<input name="minViews" type="number" min="0" step="1" value={searchMinViews} onChange={event => setSearchMinViews(event.target.value)} /></label>
               <button
-                type="button"
+                type="submit"
                 className="primary"
-                disabled={activeScanStatus !== null}
-                aria-busy={activeScanStatus === "keywords"}
-                onClick={(event) => {
-                  const form = event.currentTarget.form;
-                  if (!form || activeScanStatus) return;
-                  if (!form.reportValidity()) return;
-                  void scanKeywords(new FormData(form));
-                }}
+                disabled={pendingScan !== null}
+                aria-busy={pendingScan === "keywords"}
               >
-                <Search size={14} />{activeScanStatus === "keywords" ? "Scanning..." : "Search"}
+                <Search size={14} />{pendingScan === "keywords" ? "Searching..." : "Search"}
               </button>
             </div>
+
+          </form>
+        )}
+      </section>
+      {searchMode === "keywords" && <section className="research-card research-search-workspace research-search-options" aria-label="Keyword search filters">
             <div className="dimension-shell">
               <label className="upload-date-filter">Upload Date<select value={uploadDate} onChange={(event) => setUploadDate(event.target.value)}>
                 <option value="">Any time</option>
@@ -958,14 +981,35 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
 
               </div>
             </div>
-          </form>
-        )}
-        {activeScanStatus && <div className="scan-progress"><span />Search continues in the background.<b>{scanElapsed}s</b></div>}
-      </section>
-      <section className="research-recent research-search-history" aria-label="Recent searches"><div className="research-head"><h2><Clock3 size={19}/>Recent searches</h2><button type="button" onClick={()=>{setActiveScanId(null);setResearchView("history");}}>View all<ArrowRight size={16}/></button></div><div className="research-recent-list research-search-list">{[...historyScans].sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)).slice(0,4).map(scan=><ResearchSearchEntry key={scan.id} scan={scan} label={scanLabel(scan)} onOpen={openScan} />)}{!historyScans.length && <p className="research-recent-empty">No recent searches yet.</p>}</div></section>
+      </section>}
+      {researchView === "history" && <section className="research-recent research-history research-search-history" aria-label="Recent searches">
+        <div className="research-head"><h2 id="research-history-heading" tabIndex={-1}><Clock3 size={19} aria-hidden="true" />Recent searches</h2><button type="button" onClick={() => void refresh()}><RefreshCcw size={16} aria-hidden="true" />Refresh history</button></div>
+        <p className="research-history-status" role="status">{pendingScan || historyScans.some(scan => scan.status === "running") ? "Searching in the background. You can leave and come back later." : `${historyScans.length} saved searches`}</p>
+        {scanError && <p className="provider-error" role="alert">{scanError}</p>}
+        <div id="research-history-list" className="research-recent-list research-search-list" tabIndex={0} role="region" aria-label="Saved searches">
+          {startingScan && <ResearchSearchEntry scan={startingScan} label={scanLabel(startingScan)} onOpen={openScan} pending />}
+          {historyScans.map(scan => <ResearchSearchEntry key={scan.id} scan={scan} label={scanLabel(scan)} onOpen={openScan} />)}
+          {!historyScans.length && !startingScan && <p className="research-recent-empty">No recent searches yet.</p>}
+        </div>
+      </section>}
+      {researchView === "results" && <div className="research-navigation" id="research-back"><button type="button" onClick={() => showHistory()}><ArrowLeft size={16} aria-hidden="true" />Back to history</button></div>}
+      {researchView === "results" && activeScan && <section className="research-card saved-search-summary">
+        <div className="research-head"><div><span className="clbl">{activeScan.query ? "Keyword search" : "URL search"}</span><h2 id="research-result-heading" tabIndex={-1}>{scanLabel(activeScan)}</h2><p>{new Date(activeScan.createdAt).toLocaleString()} · {activeScan.dimensions?.actorSources?.join(", ") || activeScan.platform}</p></div><button onClick={editSearch} disabled={activeScan.status === "running"}>Edit search</button></div>
+        <div className="saved-search-filters"><span>Minimum views: {compact(activeScan.minViews)}</span><span>Type: {activeScan.dimensions?.contentType || activeScan.dimensions?.contentTypes?.join(", ") || "All types"}</span><span>Upload date: {activeScan.dimensions?.uploadDate?.replaceAll("-", " ") || "Any time"}</span></div>
+        {activeScan.status === "failed" && <p className="provider-error" role="alert">Search failed: {activeScan.error || "The provider could not complete this search. Edit the search to try again."}</p>}
+        {activeScan.status !== "failed" && activeScan.error && <p className="provider-error">{activeScan.error}</p>}
+        {activeScan.source === "fallback" && <p className="muted">Fallback results</p>}
+      </section>}
+      {researchView === "results" && activeScan && <div className="research-kpis">
+
+        <Metric label="Tracked sources" value={data.competitors.length} />
+        <Metric label="Qualified results" value={sortedResults.length} />
+        <Metric label="Total views" value={compact(totalViews)} />
+        <Metric label="Top post" value={topResult ? compact(topResult.views) : "-"} />
       </div>}
 
-      {researchView === "results" && <section className={`research-card results-card ${activeScanStatus ? "loading" : ""}`} aria-busy={activeScanStatus ? "true" : "false"}>
+      {researchView === "results" && !activeScan && <section className="research-card"><h2 id="research-result-heading" tabIndex={-1}>Search unavailable</h2><p>This saved search is no longer available in your workspace. Return to history or start a new search above.</p></section>}
+      {researchView === "results" && activeScan && <section className={`research-card results-card ${activeScanStatus ? "loading" : ""}`} aria-busy={activeScanStatus ? "true" : "false"}>
         <div className="research-head">
           <div>
             <h3>Qualified competitor results</h3>
@@ -1013,14 +1057,15 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
         </div>
       </section>}
 
+      </div>
     </ResearchMotion>
   );
 }
 
-function ResearchSearchEntry({ scan, label, onOpen, history = false }: { scan: AppData["researchScans"][number]; label: string; onOpen: (id: string) => void; history?: boolean }) {
-  return <button type="button" className={`research-search-entry${history ? " research-history-entry" : ""}`} onClick={() => onOpen(scan.id)}>
+function ResearchSearchEntry({ scan, label, onOpen, pending = false }: { scan: AppData["researchScans"][number]; label: string; onOpen: (id: string) => void; pending?: boolean }) {
+  return <button type="button" id={`research-entry-${scan.id}`} disabled={pending} className="research-search-entry research-history-entry" onClick={() => onOpen(scan.id)}>
     <PlatformIcon platform={scan.dimensions?.actorSources?.[0] || scan.platform} />
-    <span className="research-search-entry-main"><b title={label}>{label}</b><span className="research-search-entry-meta"><span>{scan.resultIds.length} saved results · Minimum {compact(scan.minViews)} views</span><time dateTime={scan.createdAt}>{new Date(scan.createdAt).toLocaleString()}</time>{scan.status === "running" && <span className="history-entry-status running">Searching</span>}</span></span>
+    <span className="research-search-entry-main"><b title={label}>{label}</b><span className="research-search-entry-meta"><span>{scan.resultIds.length} saved results · Minimum {compact(scan.minViews)} views</span><time dateTime={scan.createdAt}>{new Date(scan.createdAt).toLocaleString()}</time><span className={`history-entry-status ${scan.status || "done"}`}>{scan.status === "running" ? "Searching" : scan.status === "failed" ? "Failed" : "Completed"}</span></span></span>
     <ArrowRight size={16} aria-hidden="true" />
   </button>;
 }

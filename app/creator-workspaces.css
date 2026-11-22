@@ -78,6 +78,25 @@
 .research-search-entry>svg { flex-shrink:0; }
 .research-search-entry .history-entry-status { font-size:11px; padding:3px 8px; }
 .research-recent-empty { color:var(--creator-muted); font-size:13px; line-height:1.6; margin:14px 0; }
+/* Keep the query available while the complete history or results scroll below. */
+.main:has(.research-page) { scroll-padding-top:var(--research-scroll-offset, 300px); }
+.research-search-layout > .research-search-dock { position:sticky; top:var(--research-header-height, 72px); z-index:25; box-shadow:0 4px 12px #263c3510; }
+.app-shell .normal-workspace-frame .research-search-options { border-top:1px solid var(--creator-border); }
+.app-shell .normal-workspace-frame .research-search-options .dimension-shell { margin:0; padding:0; border:0; }
+.app-shell .normal-workspace-frame .research-recent-list { max-height: min(56dvh, 600px); overflow-y:auto; overscroll-behavior-y:contain; scrollbar-gutter:stable; padding:4px; }
+.research-history-status { color:var(--creator-muted); font-size:13px; margin:0; }
+.research-search-entry:disabled { opacity:1; cursor:wait; }
+.research-search-list:focus-visible, #research-history-heading:focus-visible, #research-result-heading:focus-visible { outline:2px solid var(--creator-green); outline-offset:2px; }
+@media (max-width:600px) {
+ .app-shell .normal-workspace-frame .research-search-dock { padding:14px; }
+ .research-search-dock :is(.research-form,.keyword-input-row) { grid-template-columns:minmax(0,1fr) auto; gap:10px; }
+ .research-search-dock :is(.research-form,.keyword-input-row)>label:first-child { grid-column:1/-1; }
+ .research-search-dock :is(.research-form,.keyword-input-row) :is(input,button.primary) { min-height:44px; }
+}
+@media (max-height:500px) {
+ .research-search-layout > .research-search-dock { position:static; }
+ .main:has(.research-page) { scroll-padding-top:calc(var(--research-header-height, 64px) + 12px); }
+}
 @container (min-width:400px) and (max-width:600px) {
   .research-search-workspace :is(.research-form,.keyword-input-row) { grid-template-columns:minmax(0,1fr) auto; }
   .research-search-workspace :is(.research-form,.keyword-input-row)>label:first-child { grid-column:1/-1; }

@@ -1,5 +1,13 @@
 # CABuild Project Handoff
 
+## 2026-11-22 — Persistent Research search and complete history
+
+- Research now has one permanent search dock above either Recent searches or a saved result. Submitting URL/keyword research immediately returns to history with a provisional Searching row, then replaces it with the saved scan without opening results. Duplicate start requests are guarded; once saved, another search can start while previous scans run.
+- Recent searches shows every stored owner-scoped scan in a keyboard-accessible scroll region, including Searching, Completed and Failed states. Removed View all and the four-row preview. Removed the API ten-row response cap and three destructive ten-scan pruning paths; previously removed records cannot be recovered by this change.
+- All running research scans poll serially between batches, independent of the selected result, with a stable refresh reference and no overlapping polling interval. Failed starts retain the entered query and show an inline error. Saved failures can be reopened and edited.
+- Back to history restores list position/focus and the outer scroll position. A researchScan URL parameter supports saved-result refresh and browser Back/Forward without remounting the search controls. Unavailable or other-owner IDs show no results. Keyword filters remain below the sticky dock; short landscape uses normal flow so controls cannot cover the content. ResizeObserver reserves keyboard scroll space for the actual header/dock height. Reduced-motion behavior is preserved and search controls do not replay entrance animations.
+- No-spend validation: tools/uat/research-history.cjs and research-history-api.cjs, plus updated adjacent research/persona, merged-workspace and content-generation handoff regressions. Independent UAT/release evidence is recorded in the persistent project log.
+
 ## 2026-11-18 — Always-visible Persona sections and inline media
 
 - Persona overview and editor now show writing/media/guardrails without disclosures. Writing appears as one unnumbered prose block; save normalization preserves commas, line breaks and complete text while retaining the legacy array schema. Missing overview values and empty media slots use `Empty`.

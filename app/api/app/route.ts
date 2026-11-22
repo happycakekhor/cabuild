@@ -37,7 +37,7 @@ export async function GET() {
     personaProfile: db.personaProfiles.find((item) => item.workspaceId === workspace.id),
     competitors: db.competitors.filter((item) => item.workspaceId === workspace.id),
     competitorResults: (db.competitorResults || []).filter((item) => item.workspaceId === workspace.id),
-    researchScans: (db.researchScans || []).filter((item) => item.workspaceId === workspace.id).slice(-10).reverse(),
+    researchScans: (db.researchScans || []).filter((item) => item.workspaceId === workspace.id).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)),
     socialAudits: (db.socialAudits || []).filter((item) => item.workspaceId === workspace.id).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)),
     connectedSocialAccounts,
     opportunities: db.opportunities.filter((item) => item.workspaceId === workspace.id),
