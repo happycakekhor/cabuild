@@ -1,5 +1,10 @@
 # CABuild Project Handoff
 
+## 2026-11-22 — One Research scrollbar for history and results
+
+- Removed the Recent searches height cap and nested scrolling. Every saved search now flows in the existing Research page scroller, exactly like saved results. The search bar and Recent searches heading remain pinned.
+- Removed obsolete internal-list scroll restoration/reset and its extra keyboard stop; current page-scroll preservation, Edit/Back order, full history and asynchronous search behavior remain intact. Browser regression checks now assert no inner history scroll and verify wheel input moves the shared Research scroller. Local browser checks pass at six Research viewports, five history widths and eight adjacent workspace widths; the 27-search owner-scoped API check also passes. Release/UAT evidence is recorded in the persistent project log.
+
 ## 2026-11-22 — Pinned Research section headings
 
 - Recent searches keeps its title and Refresh action pinned below the persistent search bar while the page and history list scroll. Saved keyword/URL searches keep a compact title/action header pinned while result metadata and results scroll below; long titles truncate visually with the full query preserved in the heading/accessibility text and title attribute.

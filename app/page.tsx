@@ -758,7 +758,6 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
   const submissionLock = useRef(false);
-  const historyScroll = useRef(0);
   const scrollPosition = useRef<number | null>(null);
   const contentArea = useRef<HTMLDivElement>(null);
   const lastOpenedScan = useRef<string | null>(null);
@@ -818,8 +817,6 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
     return () => { observer.disconnect(); for (const property of ["--research-global-height", "--research-dock-height", "--research-section-height", "--research-scroll-offset"]) main.style.removeProperty(property); };
   }, [activeScanId]);
   useEffect(() => {
-    const list = document.getElementById("research-history-list");
-    if (list) list.scrollTop = historyScroll.current;
     const target = activeScanId ? document.getElementById("research-result-heading") : lastOpenedScan.current ? document.getElementById(`research-entry-${lastOpenedScan.current}`) : null;
     if (target) {
       const bounds = target.getBoundingClientRect();
@@ -871,7 +868,6 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
     };
   }, [runningScanIds, data.workspace.id]);
   const openScan = (id: string) => {
-    historyScroll.current = document.getElementById("research-history-list")?.scrollTop || 0;
     preserveScroll();
     lastOpenedScan.current = id;
     const url = new URL(window.location.href);
@@ -910,11 +906,9 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
     };
     flushSync(() => {
       setPendingScan(mode); setStartingScan(optimistic); setScanError("");
-      lastOpenedScan.current = null; historyScroll.current = 0; showHistory(true);
+      lastOpenedScan.current = null; showHistory(true);
     });
     document.getElementById("research-query")?.focus({ preventScroll: true });
-    const list = document.getElementById("research-history-list");
-    if (list) list.scrollTop = 0;
     try {
       const result = await run(mode === "url" ? "scanResearchUrl" : "scanKeywordResearch", payload, "Search saved in Recent searches. You can leave and come back later.");
       if (!result?.id) setScanError("We couldn’t start this search. Your search details are still above; try again.");
@@ -1003,7 +997,7 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
       {researchView === "history" && <section className="research-recent research-history research-search-history" aria-label="Recent searches">
         <div className="research-head research-section-header research-history-header"><h2 id="research-history-heading" tabIndex={-1}><Clock3 size={19} aria-hidden="true" />Recent searches</h2><button type="button" aria-label="Refresh history" title="Refresh history" onClick={() => void refresh()}><RefreshCcw size={16} aria-hidden="true" /><span>Refresh history</span></button></div>
         <p className="research-history-status" role="status">{pendingScan || historyScans.some(scan => scan.status === "running") ? "Searching in the background. You can leave and come back later." : `${historyScans.length} saved searches`}</p>
-        <div id="research-history-list" className="research-recent-list research-search-list" tabIndex={0} role="region" aria-label="Saved searches">
+        <div id="research-history-list" className="research-recent-list research-search-list" role="region" aria-label="Saved searches">
           {startingScan && <ResearchSearchEntry scan={startingScan} label={scanLabel(startingScan)} onOpen={openScan} pending />}
           {historyScans.map(scan => <ResearchSearchEntry key={scan.id} scan={scan} label={scanLabel(scan)} onOpen={openScan} />)}
           {!historyScans.length && !startingScan && <p className="research-recent-empty">No recent searches yet.</p>}

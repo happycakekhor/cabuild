@@ -43,7 +43,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
   await page.setViewportSize({width,height:1000});await page.goto(base+'/?view=research');await page.locator('.research-recent').waitFor();await settle();
   assert.equal(await page.getByRole('button',{name:'View all',exact:true}).count(),0);
   assert.equal(await page.locator('.research-history-entry').count(),24);
-  assert(await page.locator('#research-history-list').evaluate(e=>e.scrollHeight>e.clientHeight&&getComputedStyle(e).overflowY==='auto'));
+  assert(await page.locator('#research-history-list').evaluate(e=>e.scrollHeight===e.clientHeight&&getComputedStyle(e).overflowY==='visible'));
   await page.getByLabel('URL or keywords',{exact:true}).fill('https://example.test/draft');const input=await page.getByLabel('URL or keywords',{exact:true}).elementHandle();
   await page.locator('#research-entry-saved-2').click();await page.getByRole('button',{name:'Back to history'}).waitFor();await settle();
   assert.equal(await page.locator('.research-recent').count(),0);assert.equal(await page.locator('.result-row').count(),1);
