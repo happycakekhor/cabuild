@@ -1,5 +1,14 @@
 # CABuild Project Handoff
 
+## 2026-11-22 — Minimal unified Research bar
+
+- Replaced URL/keyword mode buttons and the large search card with a single URL-or-keyword input, Filters toggle immediately before Search, and compact scope summary. Native Enter submits; schemeless social URLs normalize to HTTPS, malformed URLs and invalid minimum views never fall through to a paid keyword request. Keyword phrases containing a colon remain keywords.
+- Filters expand inline into a four-field row (two columns on phones): upload date, platform, content type and minimum views. Changes wait for explicit Search; collapse/Escape preserves selections; active count and reset remain available when collapsed. URL searches automatically use the source in the link and minimum views, preserving the existing URL API contract; date/type/platform selection apply to keyword searches and are visibly disabled with an explanation for URLs.
+- Search is portaled into the sticky application header outside PageMotion and the Research content container. It remains visible at every scroll position including short landscape, with bounded vertical filter scrolling. Actual header height supplies keyboard scroll clearance. The bar is under100px high when collapsed, with named44px icon actions at narrow widths.
+- Removed programmatic scroll-to-result/search and old outer history-scroll restoration. Pointer search, open/back/edit and filter toggles retain the current page scroll; when replacing long results with short history, just enough content height prevents browser clamping. Internal history-list position and preventScroll focus are preserved. Existing saved history, source handoff, owner scope and workspace-keyed in-flight polling dedup remain.
+- Research references: Gmail's options inside the search box (https://support.google.com/mail/answer/6593?hl=en), YouTube's upload-date/type filters (https://support.google.com/youtube/answer/111997?hl=en), Chrome's single address/search entry (https://support.google.com/chrome/answer/95426?hl=en), and Carbon's hidden-filter indicator/reset and explicit batch apply guidance (https://www.carbondesignsystem.com/building-blocks/core/patterns/filtering). Applied UI UX Pro Max focus-not-obscured guidance; initial disclosure search was off-topic and not used.
+- Tests: tools/uat/research-minimal.cjs, research-query.cjs, updated research-history/content-research-persona/merged-content-workspace suites. Provider calls are fixtures. Release/UAT/production evidence is recorded in the persistent project log.
+
 ## 2026-11-22 — Persistent Research search and complete history
 
 - Research now has one permanent search dock above either Recent searches or a saved result. Submitting URL/keyword research immediately returns to history with a provisional Searching row, then replaces it with the saved scan without opening results. Duplicate start requests are guarded; once saved, another search can start while previous scans run.

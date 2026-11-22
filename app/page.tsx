@@ -3,10 +3,11 @@ import StatusToast, { useStatusToast } from "@/components/status-toast";
 import KieModelBalances from "@/components/kie-model-balances";
 import { BRIEF_MODELS, type BriefModelId } from "@/lib/kie-models";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { flushSync } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
+import { parseResearchQuery } from "@/lib/research-query";
 import {
   Activity,
   ArrowLeft,
@@ -449,7 +450,7 @@ export default function Home() {
             onHomeNavigate={() => navigateScreen("home")}
             onNormalNavigate={navigateScreen}
           />
-
+          {screen === "research" && <div id="research-search-host" />}
         </header>
 
         <PageMotion pageKey={screen === "create" ? "publish" : screen}>
@@ -739,14 +740,16 @@ function syncResearchScanOnce(workspaceId: string, id: string) {
 }
 
 function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { data: AppData; run: (a: string, p?: Record<string, unknown>, m?: string) => Promise<any>; refresh: () => Promise<void>; setDirectCreateInitial: (initial: CreateContentInitial) => void }) {
-  const [searchMode, setSearchMode] = useState<"url" | "keywords">("url");
+  const [searchText, setSearchText] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searchHost, setSearchHost] = useState<HTMLElement | null>(null);
+  const query = parseResearchQuery(searchText);
+  const searchMode = query.mode;
   const [sortBy, setSortBy] = useState<"views" | "likes" | "date">("views");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [resultFilters, setResultFilters] = useState({ minViews: "", maxViews: "", minLikes: "", maxLikes: "" });
-  const [searchUrl, setSearchUrl] = useState("");
   const [searchMinViews, setSearchMinViews] = useState("0");
   const [activeScanId, setActiveScanId] = useState<string | null>(null);
-  const [keywordText, setKeywordText] = useState("");
   const [actorSource, setActorSource] = useState("instagram");
   const [contentType, setContentType] = useState("");
   const [uploadDate, setUploadDate] = useState("");
@@ -757,7 +760,8 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
   refreshRef.current = refresh;
   const submissionLock = useRef(false);
   const historyScroll = useRef(0);
-  const historyMainScroll = useRef(0);
+  const scrollPosition = useRef<number | null>(null);
+  const contentArea = useRef<HTMLDivElement>(null);
   const lastOpenedScan = useRef<string | null>(null);
   const searchDock = useRef<HTMLElement>(null);
   const researchView = activeScanId ? "results" : "history";
@@ -789,7 +793,11 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
   const totalViews = sortedResults.reduce((sum, item) => sum + item.views, 0);
   const topResult = sortedResults[0];
   useEffect(() => {
-    const syncLocation = () => setActiveScanId(new URLSearchParams(window.location.search).get("researchScan"));
+    setSearchHost(document.getElementById("research-search-host"));
+    const syncLocation = () => {
+      preserveScroll();
+      setActiveScanId(new URLSearchParams(window.location.search).get("researchScan"));
+    };
     syncLocation();
     window.addEventListener("popstate", syncLocation);
     return () => window.removeEventListener("popstate", syncLocation);
@@ -798,29 +806,47 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
     const dock = searchDock.current;
     const main = dock?.closest<HTMLElement>(".main");
     const header = main?.querySelector<HTMLElement>(".topbar");
+    const globalHeader = main?.querySelector<HTMLElement>(".global-header");
     if (!dock || !main || !header) return;
     const measure = () => {
-      main.style.setProperty("--research-header-height", `${header.offsetHeight}px`);
-      main.style.setProperty("--research-scroll-offset", `${header.offsetHeight + dock.offsetHeight + 24}px`);
+      main.style.setProperty("--research-global-height", `${globalHeader?.offsetHeight || 72}px`);
+      main.style.setProperty("--research-scroll-offset", `${header.offsetHeight + 16}px`);
     };
     const observer = new ResizeObserver(measure);
     observer.observe(dock); observer.observe(header); measure();
-    return () => { observer.disconnect(); main.style.removeProperty("--research-header-height"); main.style.removeProperty("--research-scroll-offset"); };
-  }, []);
+    return () => { observer.disconnect(); main.style.removeProperty("--research-global-height"); main.style.removeProperty("--research-scroll-offset"); };
+  }, [searchHost]);
   useEffect(() => {
     const list = document.getElementById("research-history-list");
     if (list) list.scrollTop = historyScroll.current;
-    if (list && lastOpenedScan.current) {
-      const main = list.closest<HTMLElement>(".main");
-      if (main) main.scrollTop = historyMainScroll.current;
-    }
     const target = activeScanId ? document.getElementById("research-result-heading") : lastOpenedScan.current ? document.getElementById(`research-entry-${lastOpenedScan.current}`) : null;
-    target?.focus({ preventScroll: true });
+    if (target) {
+      const bounds = target.getBoundingClientRect();
+      const headerBottom = searchDock.current?.closest(".topbar")?.getBoundingClientRect().bottom || 0;
+      const listBounds = target.closest(".research-search-list")?.getBoundingClientRect();
+      const visible = bounds.top >= Math.max(headerBottom, listBounds?.top || 0) && bounds.bottom <= Math.min(window.innerHeight, listBounds?.bottom || window.innerHeight);
+      (visible ? target : document.getElementById("research-query"))?.focus({ preventScroll: true });
+    }
     if (activeScanId) {
-      document.getElementById("research-back")?.scrollIntoView({ block: "start" });
       setResultFilters({ minViews: "", maxViews: "", minLikes: "", maxLikes: "" });
     }
   }, [activeScanId]);
+  useLayoutEffect(() => {
+    const content = contentArea.current;
+    const main = content?.closest<HTMLElement>(".main");
+    const position = scrollPosition.current;
+    if (content && main && position !== null) {
+      content.style.minHeight = "";
+      const shortage = position - (main.scrollHeight - main.clientHeight);
+      if (shortage > 0) content.style.minHeight = `${content.offsetHeight + shortage}px`;
+      main.scrollTop = position;
+    }
+    scrollPosition.current = null;
+  }, [activeScanId, filtersOpen]);
+  function preserveScroll() {
+    const main = contentArea.current?.closest<HTMLElement>(".main");
+    if (main) scrollPosition.current = main.scrollTop;
+  }
   useEffect(() => {
     if (contentType && !availableContentTypes.some((item) => item.id === contentType)) setContentType("");
   }, [actorSource, availableContentTypes, contentType]);
@@ -844,7 +870,7 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
   }, [runningScanIds, data.workspace.id]);
   const openScan = (id: string) => {
     historyScroll.current = document.getElementById("research-history-list")?.scrollTop || 0;
-    historyMainScroll.current = searchDock.current?.closest<HTMLElement>(".main")?.scrollTop || 0;
+    preserveScroll();
     lastOpenedScan.current = id;
     const url = new URL(window.location.href);
     url.searchParams.set("researchScan", id);
@@ -853,6 +879,7 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
     setResultFilters({ minViews: "", maxViews: "", minLikes: "", maxLikes: "" });
   };
   const showHistory = (replace = false) => {
+    preserveScroll();
     if (!replace && window.history.state?.researchEntry) { window.history.back(); return; }
     const url = new URL(window.location.href);
     url.searchParams.delete("researchScan");
@@ -861,13 +888,12 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
   };
   const editSearch = () => {
     if (!activeScan) return;
-    setSearchMode(activeScan.query || activeScan.url.startsWith("keyword:") ? "keywords" : "url");
-    setKeywordText(scanLabel(activeScan)); setSearchUrl(activeScan.query ? "" : activeScan.url);
+    setSearchText(scanLabel(activeScan));
     setSearchMinViews(String(activeScan.minViews));
     setActorSource(activeScan.dimensions?.actorSources?.[0] || "instagram");
     setContentType(activeScan.dimensions?.contentType || activeScan.dimensions?.contentTypes?.[0] || "");
     setUploadDate(activeScan.dimensions?.uploadDate || "");
-    window.requestAnimationFrame(() => searchDock.current?.querySelector<HTMLInputElement>("input")?.focus());
+    searchDock.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
   };
   const startScan = async (mode: "url" | "keywords", payload: Record<string, unknown>) => {
     if (submissionLock.current) return;
@@ -877,15 +903,14 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
       url: mode === "url" ? String(payload.url) : `keyword:${payload.keywords}`,
       query: mode === "keywords" ? String(payload.keywords) : undefined,
       dimensions: mode === "keywords" ? payload.dimensions as AppData["researchScans"][number]["dimensions"] : undefined,
-      platform: mode === "keywords" ? actorSource as AppData["researchScans"][number]["platform"] : "Instagram",
+      platform: mode === "keywords" ? actorSource as AppData["researchScans"][number]["platform"] : query.platform || "Instagram",
       minViews: Number(payload.minViews || 0), resultIds: [], createdAt: new Date().toISOString(), status: "running", source: "apify"
     };
     flushSync(() => {
       setPendingScan(mode); setStartingScan(optimistic); setScanError("");
       lastOpenedScan.current = null; historyScroll.current = 0; showHistory(true);
     });
-    const history = document.getElementById("research-history-heading");
-    history?.focus({ preventScroll: true }); history?.scrollIntoView({ block: "start" });
+    document.getElementById("research-query")?.focus({ preventScroll: true });
     const list = document.getElementById("research-history-list");
     if (list) list.scrollTop = 0;
     try {
@@ -898,13 +923,18 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
       setPendingScan(null); setStartingScan(null);
     }
   };
-  const scanUrl = (form: FormData) => startScan("url", Object.fromEntries(form.entries()));
-  const scanKeywords = async (form: FormData) => {
-    await startScan("keywords", {
-        keywords: keywordText,
-        minViews: Number(form.get("minViews") || 0),
-        dimensions: { actorSources: [actorSource], contentType, contentTypes: contentType ? [contentType] : [], uploadDate }
-      });
+  const submitSearch = () => {
+    if (pendingScan) return;
+    const minViews = Number(searchMinViews);
+    if (query.error || !Number.isSafeInteger(minViews) || minViews < 0) {
+      setScanError(query.error || "Minimum views must be a whole number of zero or more.");
+      if (!query.error) { preserveScroll(); setFiltersOpen(true); }
+      return;
+    }
+    void startScan(searchMode, searchMode === "url" ? { url: query.value, minViews } : {
+      keywords: query.value, minViews,
+      dimensions: { actorSources: [actorSource], contentType, contentTypes: contentType ? [contentType] : [], uploadDate }
+    });
   };
   const generateContentFromResearch = (item: CompetitorResult) => {
     setDirectCreateInitial(createInitialFromResearchResult(item, data.promptTemplates));
@@ -924,68 +954,53 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
   const selectedContentType = availableContentTypes.find((item) => item.id === contentType);
   const historyScans = [...data.researchScans].sort((a,b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   const scanLabel = (scanItem: AppData["researchScans"][number]) => scanItem.query || (scanItem.url.startsWith("keyword:") ? scanItem.url.split("|")[0].replace("keyword:", "") : scanItem.url);
-  return (
-    <ResearchMotion viewKey={`${researchView}:${searchMode}:${activeScanId || ""}`}>
-      {sourcePreview && <SourceMediaPreviewPanel source={sourcePreview} onClose={() => setSourcePreview(null)} />}
-      <CreatorPageHeader title="Research" art="research" />
-      <div className="research-search-layout"><section ref={searchDock} className="research-card research-search-workspace research-search-dock" aria-label="Search research">
-        <div className="research-mode">
-          <button aria-pressed={searchMode === "url"} className={searchMode === "url" ? "on" : ""} onClick={() => setSearchMode("url")}><Radar size={14} />Search by URL</button>
-          <button aria-pressed={searchMode === "keywords"} className={searchMode === "keywords" ? "on" : ""} onClick={() => setSearchMode("keywords")}><Search size={14} />Search by keywords</button>
+  const filterCount = (searchMode === "keywords" ? Number(actorSource !== "instagram") + Number(Boolean(contentType)) + Number(Boolean(uploadDate)) : 0) + Number(Number(searchMinViews) > 0);
+  const scopeSummary = searchMode === "url"
+    ? `${query.platform || "Source URL"} · ${Number(searchMinViews) > 0 ? `${compact(Number(searchMinViews))}+ views` : "Any views"}`
+    : `${selectedActor?.label || "Instagram"} · ${selectedContentType?.label || "All types"} · ${uploadDate ? uploadDate.replaceAll("-", " ") : "Any time"} · ${Number(searchMinViews) > 0 ? `${compact(Number(searchMinViews))}+ views` : "Any views"}`;
+  const toggleFilters = () => { preserveScroll(); setFiltersOpen(open => !open); };
+  const resetFilters = () => { setActorSource("instagram"); setContentType(""); setUploadDate(""); setSearchMinViews("0"); };
+  const searchBar = <section ref={searchDock} className="research-search-dock research-unified-dock" aria-label="Search research">
+    <form className="research-unified-form" noValidate onSubmit={event => { event.preventDefault(); submitSearch(); }} onKeyDown={event => {
+      if (event.key === "Escape" && filtersOpen) { event.preventDefault(); preserveScroll(); setFiltersOpen(false); document.getElementById("research-filter-toggle")?.focus({ preventScroll: true }); }
+    }}>
+      <div className="research-query-row">
+        <label className="research-query-field"><span className="sr-only">URL or keywords</span><Search size={18} aria-hidden="true" />
+          <input id="research-query" name="query" type="search" value={searchText} onChange={event => { setSearchText(event.target.value); setScanError(""); }} placeholder="Search a URL or keywords" aria-describedby="research-scope-summary" autoComplete="off" />
+        </label>
+        <button id="research-filter-toggle" type="button" className={`research-filter-toggle ${filtersOpen ? "on" : ""}`} aria-label={filterCount ? `Filters, ${filterCount} active` : "Filters"} title="Filters" aria-controls="research-filter-panel" aria-expanded={filtersOpen} onClick={toggleFilters}>
+          <SlidersHorizontal size={18} aria-hidden="true" /><span className="research-action-label">Filters</span>{filterCount > 0 && <span className="research-filter-count" aria-hidden="true">{filterCount}</span>}
+        </button>
+        <button className="primary research-submit" type="submit" disabled={!!pendingScan} aria-busy={!!pendingScan} aria-label={pendingScan ? "Searching..." : "Search"} title={pendingScan ? "Searching..." : "Search"}><Search size={18} aria-hidden="true" /><span className="research-action-label">{pendingScan ? "Searching..." : "Search"}</span></button>
+      </div>
+      <div className="research-scope-line"><p id="research-scope-summary" title={scopeSummary}>{scopeSummary}</p>{filterCount > 0 && <button type="button" className="research-reset" aria-label="Reset search filters" title="Reset search filters" onClick={resetFilters}><RotateCcw size={14} aria-hidden="true" /></button>}</div>
+      <div id="research-filter-panel" className="research-filter-panel" hidden={!filtersOpen}>
+        <div className="research-filter-grid">
+          <label>Upload date<select value={uploadDate} onChange={event => setUploadDate(event.target.value)} disabled={searchMode === "url"}>
+            <option value="">Any time</option><option value="today">Today</option><option value="this-week">This week</option><option value="this-month">This month</option><option value="this-year">This year</option>
+          </select></label>
+          <label>Platform<select value={searchMode === "url" ? "url" : actorSource} onChange={event => { setActorSource(event.target.value); setContentType(""); }} disabled={searchMode === "url"}>
+            {searchMode === "url" && <option value="url">{query.platform || "From URL"}</option>}{researchActors.map(actor => <option key={actor.id} value={actor.id}>{actor.label}</option>)}
+          </select></label>
+          <label>Content type<select value={contentType} onChange={event => setContentType(event.target.value)} disabled={searchMode === "url"}>
+            {availableContentTypes.map(type => <option key={type.id} value={type.id}>{type.label}</option>)}
+          </select></label>
+          <label>Minimum views<input name="minViews" type="number" min="0" step="1" value={searchMinViews} onChange={event => setSearchMinViews(event.target.value)} /></label>
         </div>
-        {searchMode === "url" ? (
-          <form onSubmit={(event) => { event.preventDefault(); if (!pendingScan) void scanUrl(new FormData(event.currentTarget)); }} className="research-form">
-            <label>Social URL<input name="url" value={searchUrl} onChange={event => setSearchUrl(event.target.value)} type="url" placeholder="LinkedIn profile/page, TikTok, Instagram, YouTube, Facebook, or X URL" required /></label>
-            <label>Minimum views<input name="minViews" type="number" min="0" step="1" value={searchMinViews} onChange={event => setSearchMinViews(event.target.value)} /></label>
-            <button
-              type="submit"
-              className="primary"
-              disabled={pendingScan !== null}
-              aria-busy={pendingScan === "url"}
-            >
-              <Search size={14} />{pendingScan === "url" ? "Searching..." : "Search"}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={(event) => { event.preventDefault(); if (!pendingScan) void scanKeywords(new FormData(event.currentTarget)); }} className="keyword-form">
-            <div className="keyword-input-row">
-              <label>Keywords<input name="keywords" value={keywordText} onChange={(event) => setKeywordText(event.target.value)} placeholder="Enter keywords, e.g. sheila majid" required /></label>
-              <label>Minimum views<input name="minViews" type="number" min="0" step="1" value={searchMinViews} onChange={event => setSearchMinViews(event.target.value)} /></label>
-              <button
-                type="submit"
-                className="primary"
-                disabled={pendingScan !== null}
-                aria-busy={pendingScan === "keywords"}
-              >
-                <Search size={14} />{pendingScan === "keywords" ? "Searching..." : "Search"}
-              </button>
-            </div>
-
-          </form>
-        )}
-      </section>
-      {searchMode === "keywords" && <section className="research-card research-search-workspace research-search-options" aria-label="Keyword search filters">
-            <div className="dimension-shell">
-              <label className="upload-date-filter">Upload Date<select value={uploadDate} onChange={(event) => setUploadDate(event.target.value)}>
-                <option value="">Any time</option>
-                <option value="today">Today</option>
-                <option value="this-week">This Week</option>
-                <option value="this-month">This Month</option>
-                <option value="this-year">This Year</option>
-              </select></label>
-              <ActorSourceSelector selected={actorSource} onSelect={setActorSource} />
-              <ContentTypeSelector selected={contentType} onSelect={setContentType} items={availableContentTypes} platform={selectedActor?.label || "Instagram"} />
-              <div className="research-filter-summary">
-                <b>Search scope</b>
-                <span>Platform: {selectedActor?.label || "Instagram"} · Type: {selectedContentType?.label || "All types"} · Upload date: {uploadDate ? uploadDate.replace("-", " ") : "Any time"}</span>
-
-              </div>
-            </div>
-      </section>}
+        {searchMode === "url" && <p className="research-filter-hint">URL searches use the source in your link and minimum views. Upload date and content type apply to keywords.</p>}
+      </div>
+      {scanError && <p className="provider-error research-query-error" role="alert">{scanError}</p>}
+    </form>
+  </section>;
+  return (
+    <ResearchMotion viewKey={`${researchView}:${activeScanId || ""}`}>
+      {sourcePreview && <SourceMediaPreviewPanel source={sourcePreview} onClose={() => setSourcePreview(null)} />}
+      {searchHost && createPortal(searchBar, searchHost)}
+      <CreatorPageHeader title="Research" art="research" />
+      <div ref={contentArea} className="research-search-layout">
       {researchView === "history" && <section className="research-recent research-history research-search-history" aria-label="Recent searches">
         <div className="research-head"><h2 id="research-history-heading" tabIndex={-1}><Clock3 size={19} aria-hidden="true" />Recent searches</h2><button type="button" onClick={() => void refresh()}><RefreshCcw size={16} aria-hidden="true" />Refresh history</button></div>
         <p className="research-history-status" role="status">{pendingScan || historyScans.some(scan => scan.status === "running") ? "Searching in the background. You can leave and come back later." : `${historyScans.length} saved searches`}</p>
-        {scanError && <p className="provider-error" role="alert">{scanError}</p>}
         <div id="research-history-list" className="research-recent-list research-search-list" tabIndex={0} role="region" aria-label="Saved searches">
           {startingScan && <ResearchSearchEntry scan={startingScan} label={scanLabel(startingScan)} onOpen={openScan} pending />}
           {historyScans.map(scan => <ResearchSearchEntry key={scan.id} scan={scan} label={scanLabel(scan)} onOpen={openScan} />)}
@@ -1068,38 +1083,6 @@ function ResearchSearchEntry({ scan, label, onOpen, pending = false }: { scan: A
     <span className="research-search-entry-main"><b title={label}>{label}</b><span className="research-search-entry-meta"><span>{scan.resultIds.length} saved results · Minimum {compact(scan.minViews)} views</span><time dateTime={scan.createdAt}>{new Date(scan.createdAt).toLocaleString()}</time><span className={`history-entry-status ${scan.status || "done"}`}>{scan.status === "running" ? "Searching" : scan.status === "failed" ? "Failed" : "Completed"}</span></span></span>
     <ArrowRight size={16} aria-hidden="true" />
   </button>;
-}
-
-function ActorSourceSelector({ selected, onSelect }: { selected: string; onSelect: (item: string) => void }) {
-  return (
-    <div className="content-type-group">
-      <b>Platform</b>
-      <div>
-        {researchActors.map((item) => (
-          <button type="button" key={item.id} aria-pressed={selected === item.id} className={selected === item.id ? "on" : ""} onClick={() => onSelect(item.id)}>
-            <span><PlatformIcon platform={item.label} />{item.label}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ContentTypeSelector({ selected, onSelect, items, platform }: { selected: string; onSelect: (item: string) => void; items: typeof researchContentTypes[number][]; platform: string }) {
-  return (
-    <div className="content-type-group">
-      <b>Content type</b>
-      <small>{platform} supports {items.filter((item) => item.id).map((item) => item.label.toLowerCase()).join(", ")} in keyword research.</small>
-      <div>
-        {items.map((item) => (
-          <button type="button" key={item.id || "all"} className={selected === item.id ? "on" : ""} onClick={() => onSelect(item.id)}>
-            <span><PlatformIcon platform={item.label} />{item.label}</span>
-            <small>{item.description}</small>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 function planContentKind(format: string): "video" | "image" | "text" {

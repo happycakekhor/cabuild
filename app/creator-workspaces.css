@@ -48,21 +48,8 @@
 .app-shell .normal-workspace-frame .persona-edit-layout .persona-footer { position:static; padding:14px 18px; border:1px solid var(--creator-border); border-radius:12px; background:#fff; }
 .persona-edit-layout :is(input,textarea,button) { scroll-margin-bottom:140px; }
 
-/* Research: query, scope, recent searches, then identifiable source results. */
-.app-shell .normal-workspace-frame .research-search-workspace { padding:30px; border-top:3px solid var(--creator-green); container-type:inline-size; }
-.research-search-workspace :is(.keyword-form,.dimension-shell) { grid-template-columns:minmax(0,1fr); min-width:0; }
-.app-shell .normal-workspace-frame .research-search-workspace .research-mode { background:transparent; padding:0; border-bottom:1px solid var(--creator-border); border-radius:0; gap:24px; }
-.app-shell .normal-workspace-frame .research-search-workspace .research-mode button { flex:0 1 auto; border-radius:0; padding:8px 0 16px; border-bottom:2px solid transparent; background:transparent; box-shadow:none; }
-.app-shell .normal-workspace-frame .research-search-workspace .research-mode button.on { border-bottom-color:var(--creator-green); }
-.research-search-workspace :is(.research-form,.keyword-input-row) input { min-height:54px; background:#f8faf8; border-radius:12px; }
-.research-search-workspace :is(.research-form,.keyword-input-row) button.primary { min-height:54px; border-radius:12px; }
-.research-search-workspace :is(.research-form,.keyword-input-row)>label:first-child input { font-size:16px; }
-.app-shell .normal-workspace-frame .research-search-workspace .dimension-shell { margin-top:28px; border:0; border-top:1px solid var(--creator-border); background:transparent; border-radius:0; padding:24px 0 0; }
-.app-shell .normal-workspace-frame .research-search-workspace .content-type-group>div { display:flex; flex-wrap:wrap; gap:8px; }
-.app-shell .normal-workspace-frame .research-search-workspace .content-type-group button { min-width:0; flex:0 1 auto; min-height:48px; padding:10px 14px; border-radius:10px; }
-.research-search-workspace .content-type-group button>small { display:none; }
-.research-search-layout { display:grid; grid-template-columns:minmax(0,1fr); gap:22px; align-items:start; }
-.research-search-layout>.research-search-workspace { margin:0; min-width:0; }
+/* Research history and result rows. */
+.research-search-layout { display:grid; grid-template-columns:minmax(0,1fr); gap:22px; align-content:start; }
 .research-search-history { padding:20px; border:1px solid var(--creator-border); border-radius:16px; background:white; min-width:0; }
 .research-search-history .research-head { display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; gap:8px; }
 .app-shell .normal-workspace-frame .research-search-history .research-head h2 { display:flex; align-items:center; margin:0; font-size:14px; gap:7px; white-space:nowrap; }
@@ -78,28 +65,47 @@
 .research-search-entry>svg { flex-shrink:0; }
 .research-search-entry .history-entry-status { font-size:11px; padding:3px 8px; }
 .research-recent-empty { color:var(--creator-muted); font-size:13px; line-height:1.6; margin:14px 0; }
-/* Keep the query available while the complete history or results scroll below. */
-.main:has(.research-page) { scroll-padding-top:var(--research-scroll-offset, 300px); }
-.research-search-layout > .research-search-dock { position:sticky; top:var(--research-header-height, 72px); z-index:25; box-shadow:0 4px 12px #263c3510; }
-.app-shell .normal-workspace-frame .research-search-options { border-top:1px solid var(--creator-border); }
-.app-shell .normal-workspace-frame .research-search-options .dimension-shell { margin:0; padding:0; border:0; }
-.app-shell .normal-workspace-frame .research-recent-list { max-height: min(56dvh, 600px); overflow-y:auto; overscroll-behavior-y:contain; scrollbar-gutter:stable; padding:4px; }
+/* Compact search lives in the application header, outside the scrolling page. */
+.app-shell > .main:has(.research-page) { scroll-padding-top:var(--research-scroll-offset, 180px); overflow-anchor:none; }
+.app-shell .topbar:has(#research-search-host) { background:var(--panel); }
+.research-unified-dock { padding:10px 32px 8px; border-bottom:1px solid var(--line); color:var(--text); background:var(--panel); }
+.research-unified-form { display:grid; gap:4px; margin:0; }
+.research-query-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:8px; }
+.research-query-field { min-width:0; display:flex; align-items:center; gap:8px; padding:0 12px; border:1px solid var(--line-2); border-radius:12px; background:var(--bg); }
+.research-query-field > svg { flex-shrink:0; color:var(--muted); }
+.research-query-field .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.app-shell .research-query-field input { min-width:0; width:100%; min-height:44px; padding:8px 0; border:0; border-radius:0; background:transparent; font-size:16px; box-shadow:none; }
+.research-query-field:focus-within { outline:2px solid var(--green-stroke); outline-offset:2px; }
+.research-query-field input:focus-visible { outline:none; }
+.research-unified-dock button { min-height:44px; padding:8px 12px; gap:6px; white-space:nowrap; }
+.research-unified-dock .research-filter-toggle.on { background:var(--green-fill); border-color:var(--green-stroke); color:var(--green-ink); }
+.research-unified-dock .research-submit { background:var(--green-fill); color:var(--green-ink); border-color:var(--green-stroke); }
+.research-unified-dock .research-submit:hover { background:var(--green-fill-hover); }
+.research-filter-count { display:inline-grid; place-items:center; min-width:18px; height:18px; padding:0 4px; border-radius:20px; background:var(--green-ink); color:var(--panel); font-size:11px; }
+.research-scope-line { min-width:0; min-height:24px; display:flex; align-items:center; gap:8px; }
+.research-scope-line p { min-width:0; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; line-height:20px; color:var(--muted); }
+.research-unified-dock .research-reset { min-height:24px; width:24px; padding:4px; border:0; background:transparent; flex-shrink:0; color:var(--green-ink); }
+.research-filter-panel { max-height:min(320px,calc(100dvh - var(--research-global-height,72px) - 116px)); overflow:auto; overscroll-behavior:contain; padding:12px 4px 4px; border-top:1px solid var(--line); }
+.research-filter-panel[hidden] { display:none; }
+.research-filter-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+.research-filter-grid label { min-width:0; display:grid; gap:6px; font-size:12px; font-weight:600; }
+.research-filter-grid :is(select,input) { min-width:0; width:100%; min-height:44px; font-size:14px; font-weight:400; }
+.research-filter-hint { margin:12px 0 0; font-size:12px; line-height:1.5; color:var(--muted); }
+.research-query-error { margin:4px 0; font-size:13px; }
+.app-shell .normal-workspace-frame .research-recent-list { max-height:min(56dvh,600px); overflow-y:auto; overscroll-behavior-y:contain; scrollbar-gutter:stable; padding:4px; }
 .research-history-status { color:var(--creator-muted); font-size:13px; margin:0; }
 .research-search-entry:disabled { opacity:1; cursor:wait; }
 .research-search-list:focus-visible, #research-history-heading:focus-visible, #research-result-heading:focus-visible { outline:2px solid var(--creator-green); outline-offset:2px; }
-@media (max-width:600px) {
- .app-shell .normal-workspace-frame .research-search-dock { padding:14px; }
- .research-search-dock :is(.research-form,.keyword-input-row) { grid-template-columns:minmax(0,1fr) auto; gap:10px; }
- .research-search-dock :is(.research-form,.keyword-input-row)>label:first-child { grid-column:1/-1; }
- .research-search-dock :is(.research-form,.keyword-input-row) :is(input,button.primary) { min-height:44px; }
-}
-@media (max-height:500px) {
- .research-search-layout > .research-search-dock { position:static; }
- .main:has(.research-page) { scroll-padding-top:calc(var(--research-header-height, 64px) + 12px); }
-}
-@container (min-width:400px) and (max-width:600px) {
-  .research-search-workspace :is(.research-form,.keyword-input-row) { grid-template-columns:minmax(0,1fr) auto; }
-  .research-search-workspace :is(.research-form,.keyword-input-row)>label:first-child { grid-column:1/-1; }
+@media(max-width:1250px) { .research-unified-dock { padding-inline:24px; } }
+@media(max-width:1000px) { .research-unified-dock { padding-inline:16px; } }
+@media(max-width:600px) {
+ .research-filter-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .research-query-row { gap:6px; }
+ .research-query-field { padding-inline:10px; }
+ .research-query-field > svg, .research-unified-dock .research-action-label { display:none; }
+ .research-unified-dock .research-query-row > button { padding:8px; min-width:44px; }
+ .research-filter-toggle { position:relative; }
+ .research-filter-count { position:absolute; right:-4px; top:-4px; }
 }
 .result-main .result-source { display:flex; gap:7px; align-items:center; margin-bottom:5px; white-space:normal; font-weight:600; }
 .app-shell .normal-workspace-frame .result-row { border:0; border-bottom:1px solid var(--creator-border); border-radius:0; padding:24px 0; }

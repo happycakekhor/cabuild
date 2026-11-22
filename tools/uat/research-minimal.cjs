@@ -1,0 +1,72 @@
+// No-spend Research journeys against a production build; every provider request is intercepted.
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const assert=require('node:assert/strict'),fs=require('node:fs');
+(async()=>{
+ const local='http://localhost:3100',base=process.env.UAT_BASE_URL||local;
+ const browser=await chromium.launch({channel:'chrome',headless:true});
+ const context=await browser.newContext({viewport:{width:1440,height:1000}});
+ let data,releaseStart,failStart=false,complete=false,sequence=0,holdSync=true;const errors=[],blocked=[],starts=[],syncs=[],releaseSync=[];
+ await context.route('**/api/**',async route=>{
+  const req=route.request(),url=new URL(req.url()),path=url.pathname;
+  if(path==='/api/app'&&data)return route.fulfill({json:data});
+  if(/credits|credentials|integrations/.test(path))return route.fulfill({json:{user:{name:'Fixture'},workspace:{credits:100},providers:[]}});
+  if(req.method()!=='GET'&&!(url.origin===local&&path==='/api/auth/login')){
+   const body=req.postDataJSON();
+   if(path==='/api/social'&&body.action==='syncResearchScan'){
+    syncs.push(body.id);
+    if(holdSync)await new Promise(resolve=>releaseSync.push(resolve));
+    const scan=data.researchScans.find(s=>s.id===body.id);
+    if(complete&&scan){scan.status='done';scan.resultIds=['result'];}
+    return route.fulfill({json:scan||{status:'missing'}});
+   }
+   if(path==='/api/social'&&['scanResearchUrl','scanKeywordResearch'].includes(body.action)){
+    starts.push(body);await new Promise(resolve=>{releaseStart=resolve});
+    if(failStart)return route.fulfill({status:502,json:{error:'Fixture provider unavailable'}});
+    const scan={id:'new-'+(++sequence),workspaceId:data.workspace.id,url:body.url||'keyword:'+body.keywords,query:body.keywords,platform:'Instagram',dimensions:body.dimensions,minViews:Number(body.minViews),status:'running',resultIds:[],createdAt:new Date().toISOString(),source:'apify'};
+    data.researchScans.unshift(scan);return route.fulfill({json:scan});
+   }
+   blocked.push(path+':'+body.action);return route.fulfill({status:403,json:{error:'No-spend test blocked write'}});
+  }
+  return route.continue();
+ });
+ const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(local+'/login');await page.getByRole('button',{name:'Enter workspace'}).click();await page.locator('.global-header').waitFor();
+ data=await(await context.request.get(local+'/api/app')).json();
+ data.assets=[];data.publishQueue=[];
+ data.competitorResults=[{id:'result',workspaceId:data.workspace.id,platform:'Instagram',url:'https://example.test/post',title:'Saved result',description:'Fixture source content',mediaType:'image',views:150,likes:20,comments:2,publishedAt:'2026-11-20T10:00:00Z',capturedAt:'2026-11-20T10:00:00Z'}];
+ data.researchScans=Array.from({length:24},(_,i)=>({id:'saved-'+i,workspaceId:data.workspace.id,url:'keyword:Saved search '+i,query:'Saved search '+i,platform:'Instagram',minViews:0,resultIds:['result'],createdAt:new Date(Date.UTC(2026,10,20,0,i)).toISOString(),status:i===0?'failed':'done',error:i===0?'Fixture failure':undefined,source:'apify'}));
+ const fits=async()=>assert(await page.locator('.main').evaluate(e=>e.scrollWidth<=e.clientWidth+1&&document.documentElement.scrollWidth<=innerWidth+1),'No horizontal overflow');
+ const dockVisible=async()=>assert(await page.locator('.research-search-dock').evaluate(e=>{const r=e.getBoundingClientRect(),h=document.querySelector('.global-header').getBoundingClientRect();return r.top>=h.bottom-1&&r.bottom<=innerHeight}),'Search remains below header and inside viewport');
+ const settle=()=>page.evaluate(()=>Promise.all(document.getAnimations().filter(a=>a.effect?.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{}))));
+ fs.mkdirSync('.playwright-mcp',{recursive:true});
+
+ const scroll=()=>page.locator('.main').evaluate(e=>e.scrollTop);
+ const pointerClick=async locator=>{await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));const r=await locator.boundingBox();await page.mouse.click(r.x+r.width/2,r.y+r.height/2)};
+ const noJump=async(action,label)=>{const before=await scroll();await action();await page.waitForTimeout(100);assert(Math.abs(await scroll()-before)<=1,`${label}: scroll ${before} -> ${await scroll()}`)};
+ const field=()=>page.getByRole('searchbox',{name:'URL or keywords'});
+ for(const [width,height] of [[1440,900],[1101,800],[768,900],[390,844],[320,700],[844,390]]){
+  await page.setViewportSize({width,height});await page.goto(base+'/?view=research');await field().waitFor();await settle();
+  assert.equal(await page.getByRole('button',{name:/Search by URL|Search by keywords/}).count(),0);
+  assert.equal(await page.locator('#research-filter-toggle').getAttribute('aria-expanded'),'false');
+  const dock=await page.locator('.research-search-dock').boundingBox();assert(dock.height<100,'Collapsed bar stays compact');
+  await field().fill('Creator stories');await page.locator('.main').evaluate(e=>e.scrollTop=e.scrollHeight);await dockVisible();
+  const filter=page.locator('#research-filter-toggle');await noJump(()=>pointerClick(filter),'Open filters');assert(await page.getByRole('combobox',{name:/Upload date/}).isVisible());
+  await page.getByRole('combobox',{name:/Platform/}).selectOption('linkedin');await page.getByRole('combobox',{name:/Content type/}).selectOption('article');await page.getByRole('combobox',{name:/Upload date/}).selectOption('this-month');await page.getByLabel('Minimum views',{exact:true}).fill('500');
+  await noJump(()=>pointerClick(filter),'Close filters');assert.match(await page.locator('#research-scope-summary').innerText(),/LinkedIn.*Articles.*this month.*500/);assert.equal(await filter.getAttribute('aria-label'),'Filters, 4 active');await dockVisible();await fits();
+  await page.screenshot({path:'.playwright-mcp/research-minimal-'+width+'.png'});
+  await filter.click();await page.screenshot({path:'.playwright-mcp/research-filters-'+width+'.png'});await page.getByLabel('Minimum views',{exact:true}).press('Escape');assert.equal(await filter.getAttribute('aria-expanded'),'false');assert.equal(await page.evaluate(()=>document.activeElement.id),'research-filter-toggle');
+  await page.getByRole('button',{name:'Reset search filters'}).click();assert.match(await page.locator('#research-scope-summary').innerText(),/Instagram.*All types.*Any time.*Any views/);
+  await page.locator('#research-entry-saved-23').scrollIntoViewIfNeeded();await noJump(()=>page.locator('#research-entry-saved-23').click(),'Open result');await page.locator('.saved-search-summary').waitFor();assert.equal(await field().inputValue(),'Creator stories');
+  await page.locator('.main').evaluate(e=>e.scrollTop=e.scrollHeight);await dockVisible();
+  await noJump(()=>page.locator('#research-back button').evaluate(e=>e.click()),'Back from deep results');await page.locator('.research-recent').waitFor();await dockVisible();
+  await filter.click();await field().fill('www.youtube.com/@studio');assert(await page.getByRole('combobox',{name:/Platform/}).isDisabled());assert.equal(await page.getByRole('combobox',{name:/Platform/}).inputValue(),'url');assert.match(await page.locator('#research-scope-summary').innerText(),/YouTube/);assert(await page.getByRole('combobox',{name:/Upload date/}).isDisabled());await filter.click();await fits();
+  console.log('PASS compact merged input, header pinned at any scroll, filters/summary/reset/Escape, and no-jump open/back/toggle',width,height);
+ }
+ await page.setViewportSize({width:1440,height:900});await page.goto(base+'/?view=research');await field().fill('https:/broken');await noJump(()=>pointerClick(page.getByRole('button',{name:'Search',exact:true})),'Invalid URL');await page.getByRole('alert').filter({hasText:'valid http'}).waitFor();assert.equal(starts.length,0);
+ await field().fill('  Brand: storytelling  ');await page.locator('#research-filter-toggle').click();await page.getByRole('combobox',{name:/Platform/}).selectOption('instagram');await page.getByRole('combobox',{name:/Content type/}).selectOption('instagram-reels');await page.getByRole('combobox',{name:/Upload date/}).selectOption('this-week');await page.getByLabel('Minimum views',{exact:true}).fill('250');await page.locator('#research-filter-toggle').click();
+ await page.locator('.main').evaluate(e=>e.scrollTop=e.scrollHeight);await noJump(async()=>{await pointerClick(field());await page.keyboard.press('Enter')},'Submit keyword');await page.locator('#research-entry-starting-search').waitFor();while(!releaseStart)await new Promise(r=>setTimeout(r,20));assert.equal(starts[0].action,'scanKeywordResearch');assert.equal(starts[0].keywords,'Brand: storytelling');assert.equal(starts[0].dimensions.contentType,'instagram-reels');assert.equal(starts[0].dimensions.uploadDate,'this-week');assert.equal(starts[0].minViews,250);releaseStart();releaseStart=null;await page.locator('#research-entry-new-1').waitFor();
+ await field().fill('instagram.com/studio');await noJump(()=>pointerClick(page.getByRole('button',{name:'Search',exact:true})),'Submit URL');await page.locator('#research-entry-starting-search').waitFor();while(!releaseStart)await new Promise(r=>setTimeout(r,20));assert.equal(starts[1].action,'scanResearchUrl');assert.equal(starts[1].url,'https://instagram.com/studio');assert.equal(starts[1].minViews,250);assert.equal(starts[1].dimensions,undefined);releaseStart();releaseStart=null;await page.locator('#research-entry-new-2').waitFor();holdSync=false;releaseSync.forEach(r=>r());
+ await page.locator('#research-filter-toggle').click();await page.getByLabel('Minimum views',{exact:true}).fill('-1');await page.locator('#research-filter-toggle').click();await page.getByRole('button',{name:'Search',exact:true}).click();await page.getByRole('alert').filter({hasText:'whole number'}).waitFor();assert.equal(starts.length,2);assert.equal(await page.locator('#research-filter-toggle').getAttribute('aria-expanded'),'true');
+ await page.emulateMedia({reducedMotion:'reduce'});await page.reload();await field().waitFor();assert.equal(await page.locator('.research-page').evaluate(e=>e.getAnimations({subtree:true}).length),0);
+ assert.deepEqual(errors,[]);assert.deepEqual(blocked,[]);await browser.close();console.log('PASS correct URL/keyword payloads, native Enter, invalid inputs without spend and no scroll on submission');
+})().catch(e=>{console.error(e);process.exit(1)});
