@@ -1,5 +1,12 @@
 # CABuild Project Handoff
 
+## 2026-11-22 — Pinned Research section headings
+
+- Recent searches keeps its title and Refresh action pinned below the persistent search bar while the page and history list scroll. Saved keyword/URL searches keep a compact title/action header pinned while result metadata and results scroll below; long titles truncate visually with the full query preserved in the heading/accessibility text and title attribute.
+- Back to history now sits immediately to the right of Edit search, including narrow layouts. Unavailable searches retain a pinned Back action. Date/scope/filter and failure details remain below the title so the pinned stack stays compact.
+- ResizeObserver measures both sticky layers for scroll clearance; expanded filters reserve room for the section heading on short screens. Research controls use small scroll margins rather than the shared large margin, and the inner filter viewport fits a complete control. Header wrapping/child widths are constrained so long Unicode queries cannot displace Edit/Back. Current-scroll preservation, default All platforms, asynchronous status, complete owner history, browser navigation and source handoff remain.
+- Validation extends research-minimal with independent page/list scrolling, title visibility/no overlap and action order across six viewports; history and adjacent content/persona flows remain covered. Release/UAT evidence is in the persistent project log.
+
 ## 2026-11-22 — Research page scroll and All platforms default
 
 - Moved the unified search out of the global application header and directly after the shared Research title. Research's page-motion container owns vertical scrolling; the compact bar sticks within that area below the global header. Shared title component and typography remain; shared header contents align to the top so wrapping action controls no longer shift titles on mobile. Current-scroll preservation, keyboard clearance, complete history and back navigation now target the Research scroll area.

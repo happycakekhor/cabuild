@@ -95,9 +95,28 @@
 .research-query-error { margin:4px 0; font-size:13px; }
 .app-shell .normal-workspace-frame .research-recent-list { max-height:min(56dvh,600px); overflow-y:auto; overscroll-behavior-y:contain; scrollbar-gutter:stable; padding:4px; }
 .research-history-status { color:var(--creator-muted); font-size:13px; margin:0; }
+.research-section-header { position:sticky; top:var(--research-dock-height,94px); z-index:24; background:var(--panel); }
+.research-history-header { padding:8px 0; }
+.app-shell .normal-workspace-frame .research-search-history .research-history-header > button { min-width:44px; min-height:44px; }
+.app-shell .normal-workspace-frame:has(.creator-page-header) .saved-search-summary { padding:12px 16px; }
+.saved-search-summary .research-head { margin:0; align-items:center; flex-direction:row; flex-wrap:nowrap; min-width:0; max-width:100%; }
+.saved-search-summary .research-section-title { flex:1; min-width:0; max-width:100%; }
+.app-shell .saved-search-summary h2 { margin:4px 0 0; font-size:18px; line-height:1.4; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.research-heading-actions { display:flex; flex-shrink:0; align-items:center; gap:8px; }
+.research-heading-actions button { white-space:nowrap; }
+.research-heading-actions #research-back { display:flex; }
+.saved-search-details > p { margin:0; color:var(--creator-muted); font-size:12px; line-height:1.5; }
+.saved-search-details .saved-search-filters { margin-top:10px; }
+.research-screen .research-filter-panel { max-height:max(96px,min(260px,calc(100dvh - var(--research-global-height,72px) - var(--research-section-height,68px) - 200px))); scroll-padding-block:4px; }
+.app-shell .normal-workspace-frame .research-page :is(button,a,input,select,textarea,[tabindex]) { scroll-margin-block:4px; }
 .research-search-entry:disabled { opacity:1; cursor:wait; }
 .research-search-list:focus-visible, #research-history-heading:focus-visible, #research-result-heading:focus-visible { outline:2px solid var(--creator-green); outline-offset:2px; }
 @media(max-width:600px) {
+ .research-history-header > button > span { display:none; }
+ .saved-search-summary .research-head { flex-direction:column; align-items:stretch; gap:10px; }
+ .saved-search-summary .research-head > div { width:100%; max-width:100%; flex:none; }
+ .research-heading-actions { justify-content:flex-end; gap:6px; }
+ .research-heading-actions button { padding-inline:8px; font-size:12px; }
  .research-filter-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
  .research-query-row { gap:6px; }
  .research-query-field { padding-inline:10px; }

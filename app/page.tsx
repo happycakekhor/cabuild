@@ -805,22 +805,26 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
     const main = dock?.closest<HTMLElement>(".page-motion");
     const header = main?.parentElement?.querySelector<HTMLElement>(".topbar");
     const globalHeader = header?.querySelector<HTMLElement>(".global-header");
+    const sectionHeader = contentArea.current?.querySelector<HTMLElement>(".research-section-header");
     if (!dock || !main || !header) return;
     const measure = () => {
       main.style.setProperty("--research-global-height", `${globalHeader?.offsetHeight || 72}px`);
-      main.style.setProperty("--research-scroll-offset", `${dock.offsetHeight + 16}px`);
+      main.style.setProperty("--research-dock-height", `${dock.offsetHeight}px`);
+      main.style.setProperty("--research-section-height", `${sectionHeader?.offsetHeight || 0}px`);
+      main.style.setProperty("--research-scroll-offset", `${dock.offsetHeight + (sectionHeader?.offsetHeight || 0) + 8}px`);
     };
     const observer = new ResizeObserver(measure);
-    observer.observe(dock); observer.observe(header); measure();
-    return () => { observer.disconnect(); main.style.removeProperty("--research-global-height"); main.style.removeProperty("--research-scroll-offset"); };
-  }, []);
+    observer.observe(dock); observer.observe(header); if (sectionHeader) observer.observe(sectionHeader); measure();
+    return () => { observer.disconnect(); for (const property of ["--research-global-height", "--research-dock-height", "--research-section-height", "--research-scroll-offset"]) main.style.removeProperty(property); };
+  }, [activeScanId]);
   useEffect(() => {
     const list = document.getElementById("research-history-list");
     if (list) list.scrollTop = historyScroll.current;
     const target = activeScanId ? document.getElementById("research-result-heading") : lastOpenedScan.current ? document.getElementById(`research-entry-${lastOpenedScan.current}`) : null;
     if (target) {
       const bounds = target.getBoundingClientRect();
-      const headerBottom = searchDock.current?.getBoundingClientRect().bottom || 0;
+      const sectionHeader = contentArea.current?.querySelector<HTMLElement>(".research-section-header");
+      const headerBottom = Math.max(searchDock.current?.getBoundingClientRect().bottom || 0, sectionHeader?.contains(target) ? 0 : sectionHeader?.getBoundingClientRect().bottom || 0);
       const listBounds = target.closest(".research-search-list")?.getBoundingClientRect();
       const visible = bounds.top >= Math.max(headerBottom, listBounds?.top || 0) && bounds.bottom <= Math.min(window.innerHeight, listBounds?.bottom || window.innerHeight);
       (visible ? target : document.getElementById("research-query"))?.focus({ preventScroll: true });
@@ -997,7 +1001,7 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
       {searchBar}
       <div ref={contentArea} className="research-search-layout">
       {researchView === "history" && <section className="research-recent research-history research-search-history" aria-label="Recent searches">
-        <div className="research-head"><h2 id="research-history-heading" tabIndex={-1}><Clock3 size={19} aria-hidden="true" />Recent searches</h2><button type="button" onClick={() => void refresh()}><RefreshCcw size={16} aria-hidden="true" />Refresh history</button></div>
+        <div className="research-head research-section-header research-history-header"><h2 id="research-history-heading" tabIndex={-1}><Clock3 size={19} aria-hidden="true" />Recent searches</h2><button type="button" aria-label="Refresh history" title="Refresh history" onClick={() => void refresh()}><RefreshCcw size={16} aria-hidden="true" /><span>Refresh history</span></button></div>
         <p className="research-history-status" role="status">{pendingScan || historyScans.some(scan => scan.status === "running") ? "Searching in the background. You can leave and come back later." : `${historyScans.length} saved searches`}</p>
         <div id="research-history-list" className="research-recent-list research-search-list" tabIndex={0} role="region" aria-label="Saved searches">
           {startingScan && <ResearchSearchEntry scan={startingScan} label={scanLabel(startingScan)} onOpen={openScan} pending />}
@@ -1005,14 +1009,16 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
           {!historyScans.length && !startingScan && <p className="research-recent-empty">No recent searches yet.</p>}
         </div>
       </section>}
-      {researchView === "results" && <div className="research-navigation" id="research-back"><button type="button" onClick={() => showHistory()}><ArrowLeft size={16} aria-hidden="true" />Back to history</button></div>}
-      {researchView === "results" && activeScan && <section className="research-card saved-search-summary">
-        <div className="research-head"><div><span className="clbl">{activeScan.query ? "Keyword search" : "URL search"}</span><h2 id="research-result-heading" tabIndex={-1}>{scanLabel(activeScan)}</h2><p>{new Date(activeScan.createdAt).toLocaleString()} · {(activeScan.dimensions?.actorSources?.length || 0) > 1 ? "All platforms" : activeScan.dimensions?.actorSources?.join(", ") || activeScan.platform}</p></div><button onClick={editSearch} disabled={activeScan.status === "running"}>Edit search</button></div>
+      {researchView === "results" && <section className="research-card saved-search-summary research-section-header">
+        <div className="research-head"><div className="research-section-title"><span className="clbl">{activeScan ? activeScan.query ? "Keyword search" : "URL search" : "Saved search"}</span><h2 id="research-result-heading" tabIndex={-1} title={activeScan ? scanLabel(activeScan) : undefined}>{activeScan ? scanLabel(activeScan) : "Search unavailable"}</h2></div><div className="research-heading-actions">{activeScan && <button type="button" onClick={editSearch} disabled={activeScan.status === "running"}>Edit search</button>}<span id="research-back"><button type="button" onClick={() => showHistory()}><ArrowLeft size={16} aria-hidden="true" />Back to history</button></span></div></div>
+      </section>}
+      {researchView === "results" && activeScan && <div className="saved-search-details">
+        <p>{new Date(activeScan.createdAt).toLocaleString()} · {(activeScan.dimensions?.actorSources?.length || 0) > 1 ? "All platforms" : activeScan.dimensions?.actorSources?.join(", ") || activeScan.platform}</p>
         <div className="saved-search-filters"><span>Minimum views: {compact(activeScan.minViews)}</span><span>Type: {activeScan.dimensions?.contentType || activeScan.dimensions?.contentTypes?.join(", ") || "All types"}</span><span>Upload date: {activeScan.dimensions?.uploadDate?.replaceAll("-", " ") || "Any time"}</span></div>
         {activeScan.status === "failed" && <p className="provider-error" role="alert">Search failed: {activeScan.error || "The provider could not complete this search. Edit the search to try again."}</p>}
         {activeScan.status !== "failed" && activeScan.error && <p className="provider-error">{activeScan.error}</p>}
         {activeScan.source === "fallback" && <p className="muted">Fallback results</p>}
-      </section>}
+      </div>}
       {researchView === "results" && activeScan && <div className="research-kpis">
 
         <Metric label="Tracked sources" value={data.competitors.length} />
@@ -1021,7 +1027,7 @@ function IntelligencePanel({ data, run, refresh, setDirectCreateInitial }: { dat
         <Metric label="Top post" value={topResult ? compact(topResult.views) : "-"} />
       </div>}
 
-      {researchView === "results" && !activeScan && <section className="research-card"><h2 id="research-result-heading" tabIndex={-1}>Search unavailable</h2><p>This saved search is no longer available in your workspace. Return to history or start a new search above.</p></section>}
+      {researchView === "results" && !activeScan && <section className="research-card"><p>This saved search is no longer available in your workspace. Return to history or start a new search above.</p></section>}
       {researchView === "results" && activeScan && <section className={`research-card results-card ${activeScanStatus ? "loading" : ""}`} aria-busy={activeScanStatus ? "true" : "false"}>
         <div className="research-head">
           <div>
