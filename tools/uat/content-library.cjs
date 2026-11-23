@@ -1,0 +1,56 @@
+// Fixture-only My Contents library, preview and nested-reader journeys.
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const assert=require('node:assert/strict'),fs=require('node:fs');
+(async()=>{
+ const local='http://localhost:3100',base=process.env.UAT_BASE_URL||local;
+ const browser=await chromium.launch({channel:'chrome',headless:true}),context=await browser.newContext({viewport:{width:1440,height:900}});
+ let data,finish=false;const errors=[],writes=[],downloads=[];
+ const svg='<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540"><defs><linearGradient id="g"><stop stop-color="#344f45"/><stop offset="1" stop-color="#adc1a4"/></linearGradient></defs><rect width="960" height="540" fill="url(#g)"/><circle cx="720" cy="120" r="130" fill="#e4e9bd"/><path d="M0 500 L280 150 L510 500 L700 270 L960 520 V540 H0" fill="#213b32"/></svg>';
+ await context.route('https://fixture.test/**',async r=>{if(r.request().url().endsWith('video.mp4'))return r.fulfill({contentType:'video/mp4',body:fs.readFileSync('public/tutorials/persona-webgui-tutorial.mp4')});return r.fulfill({contentType:'image/svg+xml',body:svg})});
+ await context.route('**/api/**',async r=>{const req=r.request(),url=new URL(req.url()),path=url.pathname;
+  if(path==='/api/app'&&data)return r.fulfill({json:data});
+  if(/credits|credentials|integrations/.test(path))return r.fulfill({json:{user:{name:'Fixture'},workspace:{credits:100},providers:[]}});
+  if(path.match(/^\/api\/assets\/.+\/download$/)){downloads.push(path);return r.fulfill({contentType:'text/plain',headers:{'content-disposition':'attachment; filename="fixture.txt"'},body:'Fixture download'});}
+  if(req.method()!=='GET'&&!(url.origin===local&&path==='/api/auth/login')){
+   const body=req.postDataJSON();if(path==='/api/social'&&body.action==='pollAsset'){if(finish){const item=data.publishQueue.find(i=>i.id==='running'),asset=data.assets.find(i=>i.id==='running');item.status='done';item.assetUrl='https://fixture.test/video.mp4';asset.status='ready';asset.assetUrl=item.assetUrl;}return r.fulfill({json:{ok:true}})}
+   writes.push(path+':'+body.action);return r.fulfill({status:403,json:{error:'No-spend test blocked write'}});
+  }return r.continue();
+ });
+ const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(local+'/login');await page.getByRole('button',{name:'Enter workspace'}).click();await page.locator('.global-header').waitFor();data=await(await context.request.get(local+'/api/app')).json();
+ const stamp='2026-11-20T10:00:00Z',long='A quiet moment, a stronger story.\n'+('Thoughtful details make the message clear. café 世界 🌿\n'.repeat(30))+'CAPTION END',description='A cinematic study of natural light and everyday rituals.\n'+('Description detail with enough room to read, select and scroll.\n'.repeat(45))+'DESCRIPTION END';
+ data.briefs=[{id:'brief',workspaceId:data.workspace.id,description,caption:long}];
+ data.assets=['video','image','text','running','failed','legacy','drama'].map((id,i)=>({id,workspaceId:data.workspace.id,briefId:id==='video'?'brief':'direct',title:'INTERNAL PROMPT '+id,type:id==='text'?'text':id==='image'?'image':'video',status:id==='running'?'rendering':id==='failed'?'failed':'ready',progress:id==='running'?40:100,createdAt:stamp,provider:id==='running'?'kie':'local',providerTaskId:id==='running'?'fixture-job':undefined,generationModel:'veo-fast',assetUrl:id==='video'?'https://fixture.test/video.mp4':id==='image'?'https://fixture.test/image.svg':id==='text'?'data:text/plain,Text%20output':undefined,prompt:'PROVIDER PROMPT\n'+'Exact instructions '.repeat(130)+'PROMPT END',generationSettings:{source:id==='drama'?'drama-studio':'content-creator',inputPrompt:'SUBMITTED PROMPT\n'+'Original creator instructions.\n'.repeat(35)+'INPUT END',usePersona:false,aspectRatio:'16:9'},assetReferences:id==='video'?[{role:'logo',fileName:'brand.svg',url:'https://fixture.test/image.svg'}]:[]}));
+ data.publishQueue=data.assets.map((asset,i)=>({id:asset.id,assetId:asset.id,workspaceId:data.workspace.id,title:asset.title,caption:i===0?long:i===5?'':({image:'A fresh perspective',text:'Three small habits',running:'A story in the making',failed:'A second take',drama:'Hidden drama'})[asset.id],platform:'Instagram',status:asset.id==='running'?'generating':asset.id==='failed'?'failed':'done',generationType:asset.type,assetUrl:asset.assetUrl,createdAt:stamp,scheduledAt:stamp,hashtags:['#CreativeWork','#Storytelling'],error:asset.id==='failed'?'Provider fixture failure '+('Details '.repeat(80))+'ERROR END':undefined,sourceUrl:asset.id==='video'?'https://example.test/source':undefined,sourceTitle:asset.id==='video'?'Research inspiration':undefined}));
+ const card=id=>page.locator('[data-content-id="'+id+'"]'),detail=()=>page.getByRole('dialog',{name:'Content details',exact:true});
+ const settle=()=>page.evaluate(()=>Promise.all(document.getAnimations().filter(a=>a.effect?.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{}))));
+ const fits=async()=>assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1&&[...document.querySelectorAll('dialog[open]')].every(e=>e.scrollWidth<=e.clientWidth+1)),'No horizontal overflow');
+ fs.mkdirSync('.playwright-mcp',{recursive:true});
+ for(const [width,height] of [[1440,900],[1101,800],[768,900],[390,844],[320,700],[844,390]]){
+  await page.setViewportSize({width,height});await page.goto(base+'/?view=publish');await card('video').waitFor();await settle();
+  assert.equal(await page.locator('.content-output-card').count(),6);assert.equal(await page.locator('.content-history-date,.content-output-card time').count(),0);
+  assert.equal(await page.getByRole('button',{name:/^Preview |^Info$/}).count(),0);assert(!(await page.locator('.publish-list').innerText()).includes('INTERNAL PROMPT'));
+  assert.match(await card('video').locator('h3').innerText(),/A quiet moment/);assert.match(await card('video').locator('.content-output-description').innerText(),/cinematic study/);assert.match(await card('legacy').locator('h3').innerText(),/Untitled video/);
+  await fits();await page.screenshot({path:'.playwright-mcp/my-content-library-'+width+'.png'});
+  await card('video').locator('.content-output-media').scrollIntoViewIfNeeded();await page.waitForTimeout(250);const thumbBox=await card('video').locator('.content-output-media').boundingBox();await page.mouse.click(thumbBox.x+thumbBox.width/2,thumbBox.y+thumbBox.height/2);await detail().waitFor();await fits();
+  const video=detail().locator('.content-detail-player video');await video.evaluate(v=>v.play());await page.waitForTimeout(150);assert(await video.evaluate(v=>v.currentTime>0));await video.evaluate(v=>v.pause());
+  assert.match(await detail().innerText(),/Generation details/);assert.match(await detail().innerText(),/Created/);assert.match(await detail().innerText(),/No persona/);assert.match(await detail().innerText(),/brand.svg/);assert.match(await detail().innerText(),/Research inspiration/);
+  await page.screenshot({path:'.playwright-mcp/my-content-details-'+width+'.png'});
+  for(const [title,end] of [['Caption','CAPTION END'],['Description','DESCRIPTION END'],['Your submitted prompt','INPUT END'],['Prompt sent to AI','PROMPT END']]){
+   const section=detail().locator('.content-detail-section').filter({has:page.getByRole('heading',{name:title,exact:true})});
+   const box=section.locator('.content-detail-text');assert(await box.evaluate(e=>e.scrollHeight>e.clientHeight&&e.tabIndex===0));
+   const expand=section.getByRole('button',{name:'Expand '+title,exact:true});await expand.click();const reader=page.getByRole('dialog',{name:title,exact:true});await reader.waitFor();assert((await reader.innerText()).includes(end));await fits();
+   await reader.getByRole('region').focus();await page.keyboard.press('Control+End');await page.keyboard.press('Escape');await reader.waitFor({state:'hidden'});assert(await detail().isVisible());assert(await expand.evaluate(e=>e===document.activeElement));
+  }
+  await page.keyboard.press('Escape');await detail().waitFor({state:'hidden'});assert(await card('video').getByRole('button').evaluate(e=>e===document.activeElement));
+  await card('image').getByRole('button').focus();await page.keyboard.press('Space');await detail().waitFor();assert(await detail().locator('.content-detail-player img').isVisible());await page.keyboard.press('Escape');
+  const d=page.waitForEvent('download');await card('image').getByRole('link',{name:'Download image'}).click();await d;assert.equal(await detail().count(),0,'Download does not open details');
+  await card('legacy').getByRole('button').click();await detail().waitFor();assert.match(await detail().innerText(),/No caption saved/);assert.match(await detail().innerText(),/No preview available/);await page.keyboard.press('Escape');
+  await card('failed').getByRole('button').click();await detail().waitFor();assert.match(await detail().innerText(),/ERROR END/);await page.keyboard.press('Escape');
+  await page.getByRole('searchbox',{name:'Search contents'}).fill('cinematic study');assert.equal(await page.locator('.content-output-card').count(),1);await page.getByRole('searchbox',{name:'Search contents'}).fill('no matches anywhere');assert(await page.getByText('No contents match these filters.',{exact:false}).isVisible());await page.getByRole('button',{name:'Reset',exact:true}).click();assert.equal(await page.locator('.content-output-card').count(),6);
+  console.log('PASS caption/description grid, whole-card open, independent download, playback, full readers/Escape/focus, missing/failed, search',width,height);
+ }
+ await page.setViewportSize({width:1440,height:900});await page.goto(base+'/?view=publish');await card('running').getByRole('button').click();assert.match(await detail().innerText(),/being created/);finish=true;await detail().locator('.content-detail-player video').waitFor({timeout:16000});assert.match(await detail().locator('.content-detail-identity').innerText(),/Ready/);await page.keyboard.press('Escape');
+ await page.emulateMedia({reducedMotion:'reduce'});await card('text').getByRole('button').focus();await page.keyboard.press('Enter');await detail().waitFor();assert.match(await detail().innerText(),/Three small habits/);await page.keyboard.press('Escape');
+ assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);assert(downloads.length>=6);console.log('PASS open generating detail updates to ready; keyboard/reduced motion; no runtime errors or paid/persistence writes');await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});

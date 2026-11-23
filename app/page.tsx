@@ -3,7 +3,7 @@ import StatusToast, { useStatusToast } from "@/components/status-toast";
 import KieModelBalances from "@/components/kie-model-balances";
 import { BRIEF_MODELS, type BriefModelId } from "@/lib/kie-models";
 
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { flushSync } from "react-dom";
@@ -54,6 +54,7 @@ import PlatformIcon from "@/components/platform-icon";
 import ContentInfo from "@/components/content-info";
 import CreatorFilterSelect from "@/components/creator-filter-select";
 import ContentOutputCard from "@/components/content-output-card";
+import { contentPresentation } from "@/lib/content-presentation";
 import AutomationLibrary from "@/components/automation-library";
 import AutomationFormatControls from "@/components/automation-format-controls";
 import AutomationTypeTabs from "@/components/automation-type-tabs";
@@ -2032,11 +2033,6 @@ function DramaWorkspacePanel({ src, title, refresh }: { src: string; title: stri
   );
 }
 
-function contentHistoryDay(item: PublishItem) {
-  const time = Date.parse(item.createdAt || item.scheduledAt);
-  return Number.isFinite(time) ? new Date(time).toLocaleDateString(undefined, { year:"numeric", month:"long", day:"numeric" }) : "Date not recorded";
-}
-
 function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, composer, composing, generationVersion }: { composing: boolean; generationVersion: number; data: AppData; run: (a: string, p?: Record<string, unknown>, m?: string) => Promise<void>; pendingGeneration: PendingGeneration | null; onCreate: () => void; onLibrary: () => void; composer?: ReactNode }) {
   const wasComposing = useRef(false);
   useEffect(() => {
@@ -2049,9 +2045,7 @@ function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, compo
   const [statusFilter, setStatusFilter] = useState("all");
   const [sort, setSort] = useState("newest");
   useEffect(() => { if (generationVersion) { setSearch("");setTypeFilter("all");setStatusFilter("all");setSort("newest"); } }, [generationVersion]);
-  const [infoItem, setInfoItem] = useState<PublishItem | null>(null);
-  const [previewAsset, setPreviewAsset] = useState<Asset | null>(null);
-  const [sourcePreview, setSourcePreview] = useState<SourceMediaPreview | null>(null);
+  const [infoId, setInfoId] = useState<string | null>(null);
   const [generationNotice, setGenerationNotice] = useState("");
   const notifiedRef = useRef<Set<string>>(new Set());
   const runRef = useRef(run);
@@ -2060,14 +2054,19 @@ function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, compo
   }, [run]);
 
   const queue = [...contentCreatorQueue(data.publishQueue, data.assets)].sort((a, b) => new Date(b.createdAt || b.scheduledAt).getTime() - new Date(a.createdAt || a.scheduledAt).getTime());
+  const infoItem = queue.find(item => item.id === infoId);
+  const presentationFor = (item: PublishItem) => {
+    const asset = data.assets.find(entry => entry.id === item.assetId);
+    return contentPresentation(item, asset, data.briefs.find(brief => brief.id === asset?.briefId));
+  };
   const visibleQueue = queue.filter(item => {
     const asset = data.assets.find(entry => entry.id === item.assetId);
     const type = item.generationType || (asset?.type === "video" || asset?.type === "ugc" ? "video" : asset?.type === "image" || asset?.type === "carousel" ? "image" : "text");
     return (typeFilter === "all" || type === typeFilter) && (statusFilter === "all" || item.status === statusFilter) &&
-      [item.title, item.caption, item.platform, item.generationModel].filter(Boolean).join(" ").toLowerCase().includes(search.trim().toLowerCase());
+      [item.title, item.caption, presentationFor(item).description, item.platform, item.generationModel].filter(Boolean).join(" ").toLowerCase().includes(search.trim().toLowerCase());
   }).sort((a, b) => {
     const byDate = new Date(a.createdAt || a.scheduledAt).getTime() - new Date(b.createdAt || b.scheduledAt).getTime();
-    return (sort === "oldest" ? byDate : sort === "title" ? a.title.localeCompare(b.title) : sort === "title-desc" ? b.title.localeCompare(a.title) : -byDate) || a.id.localeCompare(b.id);
+    return (sort === "oldest" ? byDate : sort === "title" ? presentationFor(a).title.localeCompare(presentationFor(b).title) : sort === "title-desc" ? presentationFor(b).title.localeCompare(presentationFor(a).title) : -byDate) || a.id.localeCompare(b.id);
   });
   const startIds = queue
     .map((item) => {
@@ -2120,10 +2119,8 @@ function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, compo
   }, [queue, generationNotice]);
   return (
     <div className="publish-page">
-      {sourcePreview && <SourceMediaPreviewPanel source={sourcePreview} onClose={() => setSourcePreview(null)} />}
-      {previewAsset?.assetUrl && <AssetPreviewPanel asset={previewAsset} onClose={() => setPreviewAsset(null)} />}
 
-      {infoItem && <ContentInfo item={infoItem} asset={data.assets.find(asset => asset.id === infoItem.assetId)} onClose={() => setInfoItem(null)} />}
+      {infoItem && <ContentInfo item={infoItem} asset={data.assets.find(asset => asset.id === infoItem.assetId)} brief={data.briefs.find(brief => brief.id === data.assets.find(asset => asset.id === infoItem.assetId)?.briefId)} onClose={() => setInfoId(null)} />}
       <CreatorPageHeader title="My Contents" art="library"><button id="content-editor-toggle" type="button" className={composing ? "" : "primary"} aria-expanded={composing} aria-controls="content-editor" onClick={composing ? onLibrary : onCreate}>{composing ? <><ArrowUp size={17}/>Hide editor</> : <><Plus size={17}/>Create Content</>}</button>
       </CreatorPageHeader>
       {generationNotice && <div className="generation-notice">{generationNotice}</div>}
@@ -2150,12 +2147,12 @@ function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, compo
             <div className="publish-main">
               <div className="publish-icon">{pendingGeneration.kind === "video" ? <Film size={18} /> : pendingGeneration.kind === "image" ? <Palette size={18} /> : <FileText size={18} />}</div>
               <div>
-                <h3>{pendingGeneration.title}</h3>
+                <h3>Creating your {pendingGeneration.kind === "text" ? "post" : pendingGeneration.kind}</h3>
                 <p>{pendingGeneration.description}</p>
                 <div className="publish-tags">
                   <span>{pendingGeneration.kind}</span>
                   <span>{pendingGeneration.model}</span>
-                  <span>{new Date(pendingGeneration.startedAt).toLocaleString()}</span>
+
                 </div>
                 <small className="generation-help">You can leave this page. Generation continues in the background and this row updates automatically.</small>
               </div>
@@ -2166,26 +2163,9 @@ function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, compo
             </div>
           </article>
         )}
-        {visibleQueue.map((item, index) => {
-          const asset = data.assets.find((entry) => entry.id === item.assetId);
-          const isVideo = item.generationType === "video" || asset?.type === "video" || asset?.type === "ugc";
-          const isImage = item.generationType === "image" || asset?.type === "image" || asset?.type === "carousel";
-          const videoUrl = isVideo ? item.assetUrl || asset?.assetUrl : "";
-          const imageUrl = isImage ? item.assetUrl || asset?.assetUrl : "";
-          const previewableAsset: Asset = { id: item.assetId, workspaceId: item.workspaceId, briefId: "", title: item.title, type: isImage ? "image" : "video", status: "ready", progress: 100, createdAt: item.createdAt || item.scheduledAt, ...asset, assetUrl: videoUrl || imageUrl || asset?.assetUrl };
-          const sourceMedia: SourceMediaPreview | null = item.sourceUrl || item.sourceThumbnailUrl || item.sourceMediaUrl || asset?.sourceUrl || asset?.sourceThumbnailUrl || asset?.sourceMediaUrl
-            ? {
-              title: item.sourceTitle || asset?.sourceTitle || item.title,
-              platform: item.platform,
-              sourceUrl: item.sourceUrl || asset?.sourceUrl,
-              thumbnailUrl: item.sourceThumbnailUrl || asset?.sourceThumbnailUrl,
-              mediaUrl: item.sourceMediaUrl || asset?.sourceMediaUrl,
-              mediaType: item.sourceMediaType || asset?.sourceMediaType,
-              description: item.caption || asset?.prompt
-            }
-            : null;
-          const dateHeading = (sort === "newest" || sort === "oldest") && (index === 0 || contentHistoryDay(visibleQueue[index - 1]) !== contentHistoryDay(item));
-          return <Fragment key={item.id}>{dateHeading && <h2 className="content-history-date"><CalendarDays size={17}/>{contentHistoryDay(item)}</h2>}<ContentOutputCard item={item} asset={asset} onPreview={() => setPreviewAsset(previewableAsset)} onInfo={() => setInfoItem(item)} onSource={sourceMedia ? () => setSourcePreview(sourceMedia) : undefined} /></Fragment>;
+        {visibleQueue.map(item => {
+          const asset = data.assets.find(entry => entry.id === item.assetId);
+          return <ContentOutputCard key={item.id} item={item} asset={asset} brief={data.briefs.find(brief => brief.id === asset?.briefId)} onOpen={() => setInfoId(item.id)} />;
         })}
         {queue.length === 0 && !pendingGeneration && <div className="empty-state">No content yet. Choose Create Content above to make your first image, video or post.</div>}
         {queue.length > 0 && visibleQueue.length === 0 && <div className="empty-state" role="status">No contents match these filters. Try another search or reset your filters.</div>}

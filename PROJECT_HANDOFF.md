@@ -1,5 +1,11 @@
 # CABuild Project Handoff
 
+## 2026-11-23 — My Contents library and complete detail viewer
+
+- Replaced dated rows with a responsive thumbnail card grid. Cards show saved caption and brief description, platform/type/status, and a separate Download action. Full-card pointer/keyboard activation opens details; Preview and Info buttons and external dates are removed. Internal prompt-derived titles are retained only in creation history. Missing publishing copy is explicit, never inferred from prompts.
+- One media/detail dialog brings video/image/text, caption/description/hashtags, creation dates, model/persona/settings, submitted/provider prompts, full errors, references and research source together. Actual overflow gets a keyboard-scrollable text box and Expand action; full-text readers are nested native dialogs with independent Escape/backdrop dismissal and focus restoration. Desktop uses two columns; phones show media then publishing copy, with metadata below. No autoplay. The selected ID resolves current data so ongoing generation updates in the open viewer.
+- Eight primary-source research references, UI UX guidance and acceptance criteria: docs/design/my-content-library-2026-11-23.md. New tools/uat/content-library.cjs exercises whole-card interaction, real media playback, download separation, full text, popup focus, missing/failed states and live status across six viewports; adjacent filter/sort fixtures follow caption display. No schema/API migration or paid provider calls. Release/UAT evidence is in the persistent project log.
+
 ## 2026-11-22 — One Research scrollbar for history and results
 
 - Removed the Recent searches height cap and nested scrolling. Every saved search now flows in the existing Research page scroller, exactly like saved results. The search bar and Recent searches heading remain pinned.

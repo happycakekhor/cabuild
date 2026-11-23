@@ -11,6 +11,7 @@ import "./creator-workspaces.css";
 import "./persona-overview.css";
 import "./persona-editor.css";
 import "./green-accents.css";
+import "./content-library.css";
 
 export const metadata: Metadata = {
   title: "ContentAgent Social",

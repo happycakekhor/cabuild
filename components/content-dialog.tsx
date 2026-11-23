@@ -3,8 +3,8 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 
-export default function ContentDialog({ title, description, onClose, busy = false, children, compact = false }: {
-  title: string; description?: string; onClose: () => void; busy?: boolean; children: ReactNode; compact?: boolean;
+export default function ContentDialog({ title, description, onClose, busy = false, children, compact = false, className = "" }: {
+  title: string; description?: string; onClose: () => void; busy?: boolean; children: ReactNode; compact?: boolean; className?: string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -18,8 +18,8 @@ export default function ContentDialog({ title, description, onClose, busy = fals
       target?.focus({ preventScroll: true });
     };
   }, []);
-  return <dialog ref={dialog} className={`content-dialog${compact ? " content-dialog-compact" : ""}`} aria-labelledby={titleId} aria-busy={busy}
-    onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}
+  return <dialog ref={dialog} className={`content-dialog${compact ? " content-dialog-compact" : ""} ${className}`} aria-labelledby={titleId} aria-busy={busy}
+    onCancel={event => { event.preventDefault(); event.stopPropagation(); if (!busy) onClose(); }}
     onClick={event => {
       if (event.target !== event.currentTarget || busy) return;
       const bounds = event.currentTarget.getBoundingClientRect();
