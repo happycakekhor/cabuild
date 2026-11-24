@@ -1,4 +1,10 @@
 # CABuild Project Handoff
+## 2026-11-24 — My Contents Grid/Rows and larger details
+
+- Added a labelled Grid/Rows control with visible and announced selected state. Grid remains the default; Rows is a compact full-width list with thumbnail, caption/description, status/type and independent Download. Both layouts share the same card DOM and detail opener. The choice is remembered per workspace in this browser; blocked storage falls back safely and switching still works. Search, sort, filters/reset and generation continue independently of layout.
+- Raised the content-detail popup maximum dimensions20% from1100x850 to1320x1020, constrained by viewport gutters; phones retain their near-full-screen fit. Full-text readers retain readable line lengths, native focus/keyboard behavior and independent dismissal.
+- Applied CABUILD delivery/project and UI UX Pro Max visible-focus/active-state guidance. Extended the no-spend content-library browser suite for both layouts, stable DOM, keyboard toggles, reload persistence/storage failure, filtering/downloads in Rows and exact large-screen popup dimensions plus narrow-screen fit. Release/UAT evidence is in the persistent project log.
+
 
 ## 2026-11-23 — My Contents library and complete detail viewer
 

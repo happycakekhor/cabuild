@@ -30,6 +30,8 @@ import {
   Globe,
   Mic,
   Lightbulb,
+  LayoutGrid,
+  List,
   Megaphone,
   Palette,
   Info,
@@ -2034,6 +2036,16 @@ function DramaWorkspacePanel({ src, title, refresh }: { src: string; title: stri
 }
 
 function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, composer, composing, generationVersion }: { composing: boolean; generationVersion: number; data: AppData; run: (a: string, p?: Record<string, unknown>, m?: string) => Promise<void>; pendingGeneration: PendingGeneration | null; onCreate: () => void; onLibrary: () => void; composer?: ReactNode }) {
+  const [layout, setLayout] = useState<"grid" | "rows">("grid");
+  const layoutKey = `cabuild:content-layout:${data.workspace.id}`;
+  useEffect(() => {
+    try { setLayout(localStorage.getItem(layoutKey) === "rows" ? "rows" : "grid"); }
+    catch { setLayout("grid"); }
+  }, [layoutKey]);
+  const changeLayout = (value: "grid" | "rows") => {
+    setLayout(value);
+    try { localStorage.setItem(layoutKey, value); } catch { /* Still usable when browser storage is unavailable. */ }
+  };
   const wasComposing = useRef(false);
   useEffect(() => {
     if (composing) document.querySelector<HTMLElement>("#content-editor h2")?.focus({preventScroll:true});
@@ -2126,7 +2138,7 @@ function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, compo
       {generationNotice && <div className="generation-notice">{generationNotice}</div>}
       <section id="content-editor" className="integrated-content-editor" aria-label="Create Content" hidden={!composing}><div className="integrated-editor-heading"><h2 tabIndex={-1}><Sparkles size={21}/>Create Content</h2><button type="button" onClick={()=>{document.getElementById("content-library")?.focus({preventScroll:true});document.getElementById("content-library")?.scrollIntoView({block:"start",behavior:"auto"});}}><Clock3 size={16}/>View contents</button></div>{composer}</section>
       <section id="content-library" tabIndex={-1} className="content-library-filters" aria-label="Filter and sort contents">
-        <div className="library-view-heading"><h2><Clock3 size={20}/>Content history</h2><span aria-live="polite">{visibleQueue.length} of {queue.length} records</span></div>
+        <div className="library-view-heading"><h2><Clock3 size={20}/>Content history</h2><div className="library-view-actions"><span aria-live="polite">{visibleQueue.length} of {queue.length} records</span><div className="library-layout-switch" role="group" aria-label="Content layout"><button type="button" aria-label="Grid view" aria-pressed={layout === "grid"} onClick={() => changeLayout("grid")}><LayoutGrid size={16} aria-hidden="true" />Grid</button><button type="button" aria-label="Rows view" aria-pressed={layout === "rows"} onClick={() => changeLayout("rows")}><List size={16} aria-hidden="true" />Rows</button></div></div></div>
         <div className="creator-library-toolbar">
           <label className="creator-library-search"><Search size={16} /><input type="search" aria-label="Search contents" placeholder="Search contents" value={search} onChange={event => setSearch(event.target.value)} /></label>
           <CreatorFilterSelect label="Type" accessibleLabel="Media type" value={typeFilter} defaultValue="all" onChange={setTypeFilter} options={[{ value:"all", label:"All media" }, { value:"video", label:"Video" }, { value:"image", label:"Image" }, { value:"text", label:"Text" }]} />
@@ -2137,7 +2149,7 @@ function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, compo
           </div>
         </div>
       </section>
-      <div className="publish-list">
+      <div className={`publish-list${layout === "rows" ? " publish-list-rows" : ""}`}>
         {pendingGeneration && (
           <article className="publish-card with-video pending-publish-card">
             <div className="image-thumb pending">
