@@ -1,4 +1,9 @@
 # CABuild Project Handoff
+## 2026-11-24 — Content fills the taller Rows layout
+
+- Replaced the empty fractional spacer tracks with a single content layout. Row previews now occupy the available height (168px minimum desktop; 112px phone), captions use 20px desktop/18px phone, and descriptions use 16px with up to three visible lines. Phones place descriptions across the full row below the preview and caption. Rows grow naturally for wrapped status/copy rather than clipping or adding artificial blank bands.
+- Grid mode and the 1584px maximum detail-popup width are preserved. Full-row opening, independent Download, layout preferences and asynchronous states keep their existing behavior. Applied UI UX Pro Max readable-text guidance; content-library UAT now checks occupied row space and enlarged media/copy alongside the existing responsive interaction coverage.
+
 ## 2026-11-24 — Taller Rows and wider content popup
 
 - Rows now add50% vertical space around each entry's original intrinsic content height using symmetric fractional grid tracks. Text, controls, thumbnail sizes and horizontal layout remain at their prior scale; the shared wrapper uses display:contents in Grid mode. This handles short/long captions and phone rows without fixed-height clipping or JavaScript measurement. Border rounding is at most1px from1.5x the previous outer height.

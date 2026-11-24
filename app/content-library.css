@@ -75,20 +75,24 @@
 .app-shell .library-layout-switch button[aria-pressed="true"] { border-color:var(--creator-border); background:var(--panel); color:var(--creator-ink); box-shadow:0 1px 4px #23392a10; }
 .app-shell .library-layout-switch button:focus-visible { outline:2px solid var(--creator-green); outline-offset:2px; }
 .app-shell .normal-workspace-frame .publish-list.publish-list-rows { grid-template-columns:minmax(0,1fr); gap:12px; }
-/* Intrinsic middle track keeps each row's original size; quarter-size spacers
-   add 50% vertical room without scaling text, media or horizontal dimensions. */
-.app-shell .normal-workspace-frame .publish-list-rows .content-output-card { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:.25fr 1fr .25fr; padding:0; gap:0; align-items:stretch; }
-.app-shell .normal-workspace-frame .publish-list-rows .content-output-layout { display:grid; grid-column:1; grid-row:2; grid-template-columns:160px minmax(0,1fr) 106px; grid-template-rows:auto auto; gap:8px 20px; align-items:center; padding:16px; min-width:0; }
-.app-shell .normal-workspace-frame .publish-list-rows .content-output-media { grid-column:1; grid-row:1/3; height:100px; }
-.app-shell .normal-workspace-frame .publish-list-rows .content-output-heading { grid-column:2; grid-row:1; gap:8px; }
-.app-shell .normal-workspace-frame .publish-list-rows .content-output-description { grid-column:2; grid-row:2; }
-.app-shell .normal-workspace-frame .publish-list-rows .content-output-description > p { min-height:0; }
+/* Let larger previews and readable copy occupy the row, with no spacer tracks. */
+.app-shell .normal-workspace-frame .publish-list-rows .content-output-card { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:auto; padding:0; gap:0; align-items:stretch; }
+.app-shell .normal-workspace-frame .publish-list-rows .content-output-layout { display:grid; grid-column:1; grid-row:1; grid-template-columns:clamp(160px,18vw,240px) minmax(0,1fr) 106px; grid-template-rows:auto auto; gap:10px 24px; align-items:center; padding:16px; min-width:0; }
+.app-shell .normal-workspace-frame .publish-list-rows .content-output-media { grid-column:1; grid-row:1/3; height:100%; min-height:168px; aspect-ratio:auto; }
+.app-shell .normal-workspace-frame .publish-list-rows .content-output-heading { grid-column:2; grid-row:1; gap:10px; align-self:end; }
+.app-shell .normal-workspace-frame .publish-list-rows .content-output-description { grid-column:2; grid-row:2; align-self:start; }
+.app-shell .normal-workspace-frame .publish-list-rows .content-output-description > p:not(.provider-error) { min-height:0; font-size:16px; line-height:1.6; -webkit-line-clamp:3; }
+.app-shell .normal-workspace-frame .publish-list-rows .content-output-heading h3 { font-size:20px; }
+.app-shell .normal-workspace-frame .publish-list-rows .content-type-label { font-size:13px; }
+.app-shell .normal-workspace-frame .publish-list-rows .content-output-media > svg { width:44px; height:44px; }
 .app-shell .normal-workspace-frame .publish-list-rows .content-output-footer { grid-column:3; grid-row:1/3; flex-direction:column; justify-content:center; align-items:flex-end; margin:0; padding:0; border:0; }
 .app-shell .normal-workspace-frame .publish-list-rows .content-output-actions { margin-left:0; }
 @media(max-width:600px) {
  .library-view-actions { width:100%; justify-content:space-between; }
- .app-shell .normal-workspace-frame .publish-list-rows .content-output-layout { grid-template-columns:76px minmax(0,1fr); padding:12px; gap:10px 12px; }
- .app-shell .normal-workspace-frame .publish-list-rows .content-output-media { height:76px; aspect-ratio:1; }
- .app-shell .normal-workspace-frame .publish-list-rows .content-output-heading h3 { font-size:15px; }
+ .app-shell .normal-workspace-frame .publish-list-rows .content-output-layout { grid-template-columns:112px minmax(0,1fr); padding:12px; gap:12px; }
+ .app-shell .normal-workspace-frame .publish-list-rows .content-output-media { grid-row:1; height:112px; min-height:112px; aspect-ratio:1; }
+ .app-shell .normal-workspace-frame .publish-list-rows .content-output-heading { align-self:center; }
+ .app-shell .normal-workspace-frame .publish-list-rows .content-output-heading h3 { font-size:18px; }
+ .app-shell .normal-workspace-frame .publish-list-rows .content-output-description { grid-column:1/-1; }
  .app-shell .normal-workspace-frame .publish-list-rows .content-output-footer { grid-column:1/-1; grid-row:3; flex-direction:row; align-items:center; justify-content:space-between; border-top:1px solid var(--creator-border); padding-top:8px; }
 }
