@@ -1,4 +1,10 @@
 # CABuild Project Handoff
+## 2026-11-24 — Taller Rows and wider content popup
+
+- Rows now add50% vertical space around each entry's original intrinsic content height using symmetric fractional grid tracks. Text, controls, thumbnail sizes and horizontal layout remain at their prior scale; the shared wrapper uses display:contents in Grid mode. This handles short/long captions and phone rows without fixed-height clipping or JavaScript measurement. Border rounding is at most1px from1.5x the previous outer height.
+- Increased the main popup maximum width from1320px to1584px (1.2x), retaining1020px maximum height and existing viewport gutters/mobile fit. Expanded full-text readers retain their readable width.
+- Extended content-library regression for per-entry height ratios at six viewports and exact1584x1020 popup dimensions on a large screen. CABUILD delivery/project and UI UX Pro Max responsive-overflow guidance applied. Release/UAT evidence is in the persistent project log.
+
 ## 2026-11-24 — My Contents Grid/Rows and larger details
 
 - Added a labelled Grid/Rows control with visible and announced selected state. Grid remains the default; Rows is a compact full-width list with thumbnail, caption/description, status/type and independent Download. Both layouts share the same card DOM and detail opener. The choice is remembered per workspace in this browser; blocked storage falls back safely and switching still works. Search, sort, filters/reset and generation continue independently of layout.

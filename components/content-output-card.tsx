@@ -15,6 +15,7 @@ export default function ContentOutputCard({ item, asset, brief, onOpen }: {
   const media = content.url && failedUrl !== content.url && (content.video || content.image);
   return <article className="publish-card content-output-card" data-content-id={item.id}>
     <button type="button" className="content-card-open" onClick={onOpen} aria-label={`Open content: ${content.title}`} aria-haspopup="dialog" />
+    <div className="content-output-layout">
     <div className="content-output-media" aria-hidden="true">
       {media ? content.video ? <video src={content.url} muted preload="metadata" playsInline onError={() => setFailedUrl(content.url)} /> : <img src={content.url} alt="" loading="lazy" onError={() => setFailedUrl(content.url)} /> : <TypeIcon size={32} />}
     </div>
@@ -29,5 +30,6 @@ export default function ContentOutputCard({ item, asset, brief, onOpen }: {
     <footer className="content-output-footer"><span className="content-type-label"><TypeIcon size={16} aria-hidden="true" />{content.type}</span>
       <div className="content-output-actions">{content.url && <a className="icon-btn" href={`/api/assets/${item.assetId}/download`} aria-label={`Download ${content.type.toLowerCase()}`} title={`Download ${content.type.toLowerCase()}`}><Download size={19} aria-hidden="true" /></a>}</div>
     </footer>
+    </div>
   </article>;
 }
