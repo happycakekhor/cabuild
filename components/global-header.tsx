@@ -201,12 +201,12 @@ export default function GlobalHeader({
 
   return (
     <>
-    <WorkspaceSidebar activeMode={activeMode} activePage={activePage} account={account} frontendBaseUrl={frontendBaseUrl} onHomeNavigate={onHomeNavigate} onNormalNavigate={onNormalNavigate} mobileOpen={mobileOpen} onClose={closeSidebar} />
+    <WorkspaceSidebar activeMode={activeMode} activePage={activePage === "create" ? "publish" : activePage} account={account} frontendBaseUrl={frontendBaseUrl} onHomeNavigate={onHomeNavigate} onNormalNavigate={onNormalNavigate} mobileOpen={mobileOpen} onClose={closeSidebar} />
     <div className="global-header" ref={headerRef}>
       <div className="global-header-inner">
         <div className="desktop-topbar-title">
           <button type="button" className="desktop-nav-open" aria-label="Open navigation" aria-expanded={mobileOpen} aria-controls="workspace-sidebar" onClick={() => setMobileOpen(true)}><Menu size={20} /></button>
-          <div className="desktop-breadcrumb"><span>Workspace</span><span aria-hidden="true">/</span><strong>{[...normalPages, ...dramaPages].find(page => page.id === activePage)?.label || (activePage === "settings" ? "Settings" : activePage === "account" ? "Account" : "Overview")}</strong></div>
+          <div className="desktop-breadcrumb"><span>Workspace</span><span aria-hidden="true">/</span><strong>{[...normalPages, ...dramaPages].find(page => page.id === activePage)?.label || (activePage === "create" ? "Create Content" : activePage === "settings" ? "Settings" : activePage === "account" ? "Account" : "Overview")}</strong></div>
         </div>
 
         <div className="global-header-actions">

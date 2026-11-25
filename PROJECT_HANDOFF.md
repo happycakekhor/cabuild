@@ -1,4 +1,10 @@
 # CABuild Project Handoff
+## 2026-11-25 — Dedicated compact Create Content page
+
+- Create Content is now its own `/?view=create` page in the existing browser tab. My Contents stays the sidebar entry; the breadcrumb/page heading identify Create Content and a Back to My Contents action returns to history. Legacy publish+compose links redirect in place, preserving exact Research source IDs. Draft and library components stay mounted while switching between the two pages, preserving draft fields/uploads, filters and polling; only the active page is visible.
+- Replaced the long stacked setup with two focused panels: prompt plus optional AI assistance/caption/hashtags, and compact type/platform/model/format/Persona settings. References open the existing accessible asset picker through a toolbar button with selected count. Direct generation starts with a required blank prompt. Default controls fit common laptop screens (1280x800/1366x768/1440x900); smaller screens and expanded optional tools scroll with accessible controls instead of clipping.
+- Shared module keeps all type/model/provider/reference payloads, AI brief-only preparation, queue-failure recovery and success handoff. Research video refinement retains explicit final review. No API, schema, dependency, or provider changes. Ten official reference websites and actual screenshots informed the design; rationale and acceptance are in docs/design/create-content-2026-11-25.md. Root and independent UAT/deployment evidence is in the persistent log.
+
 ## 2026-11-24 — Content fills the taller Rows layout
 
 - Replaced the empty fractional spacer tracks with a single content layout. Row previews now occupy the available height (168px minimum desktop; 112px phone), captions use 20px desktop/18px phone, and descriptions use 16px with up to three visible lines. Phones place descriptions across the full row below the preview and caption. Rows grow naturally for wrapped status/copy rather than clipping or adding artificial blank bands.

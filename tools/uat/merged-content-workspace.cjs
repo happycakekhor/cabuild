@@ -28,18 +28,15 @@ const assert=require('node:assert/strict');
  for(const width of [1440,1280,1200,1150,1101,768,390,320]){
   await page.setViewportSize({width,height:1000});await page.goto(base+'/?view=publish');await page.getByRole('heading',{name:'My Contents',level:1,exact:true}).waitFor();
   assert.equal(await page.locator('.desktop-navigation').getByRole('link',{name:'Create Content',exact:true}).count(),0);
-  const search=page.getByRole('searchbox',{name:'Search contents',exact:true});await search.fill('Saved');const searchNode=await search.elementHandle();
-  await page.getByRole('button',{name:'Create Content',exact:true}).click();await page.waitForURL('**/?view=publish&compose=1');
-  assert(await page.locator('#content-editor h2').first().evaluate(el=>el===document.activeElement),'Opening focuses the editor');
-  assert(await page.locator('.publish-list').isVisible(),'History stays visible with editor');assert.equal(await search.inputValue(),'Saved');assert(await search.evaluate((el,old)=>el===old,searchNode),'Library is not remounted');
+  const search=page.locator('input[aria-label="Search contents"]');await search.fill('Saved');const searchNode=await search.elementHandle();
+  await page.getByRole('button',{name:'Create Content',exact:true}).click();await page.waitForURL('**/?view=create');
+  assert(await page.locator('.create-route h1').evaluate(el=>el===document.activeElement),'Opening focuses the page heading');
+  assert(!(await page.locator('.publish-list').isVisible()),'Creation is a separate page');assert.equal(await search.inputValue(),'Saved');assert(await search.evaluate((el,old)=>el===old,searchNode),'Library is retained');
   assert.equal((await page.locator('.desktop-nav-item[aria-current="page"]').textContent()).trim(),'My Contents');
-  const prompt=page.getByRole('textbox',{name:'Generation prompt',exact:true});await prompt.fill('My retained draft');const promptNode=await prompt.elementHandle();
-  await page.getByRole('button',{name:'Image',exact:true}).click();
-  await page.getByRole('button',{name:'View contents',exact:true}).click();assert(await page.locator('#content-library').evaluate(el=>el===document.activeElement));assert(await page.locator('#content-editor').isVisible());
-  await page.getByRole('button',{name:'Hide editor',exact:true}).click();assert(!(await page.locator('#content-editor').isVisible()));assert(await page.locator('#content-editor-toggle').evaluate(el=>el===document.activeElement),'Closing restores toggle focus');
-  await page.getByRole('button',{name:'Create Content',exact:true}).click();assert.equal(await prompt.inputValue(),'My retained draft');assert(await prompt.evaluate((el,old)=>el===old,promptNode),'Collapsed draft remains mounted');
-  assert.equal(await page.getByRole('button',{name:'Image',exact:true}).getAttribute('aria-pressed'),'true');
-  await page.goBack();await page.waitForURL('**/?view=publish');assert(!(await page.locator('#content-editor').isVisible()));await page.goForward();await page.waitForURL('**/?view=publish&compose=1');assert.equal(await prompt.inputValue(),'My retained draft');await fits();
+  const prompt=page.getByRole('textbox',{name:'Generation prompt',exact:true});await prompt.fill('My retained draft');const promptNode=await prompt.elementHandle();await page.getByRole('button',{name:'Image',exact:true}).click();
+  await page.getByRole('button',{name:'Back to My Contents',exact:true}).click();assert(!(await page.locator('.create-route').isVisible()));assert(await page.locator('#content-editor-toggle').evaluate(el=>el===document.activeElement));
+  await page.getByRole('button',{name:'Create Content',exact:true}).click();assert.equal(await prompt.inputValue(),'My retained draft');assert(await prompt.evaluate((el,old)=>el===old,promptNode),'Draft remains mounted');assert.equal(await page.getByRole('button',{name:'Image',exact:true}).getAttribute('aria-pressed'),'true');
+  await page.goBack();await page.waitForURL('**/?view=publish');assert(!(await page.locator('.create-route').isVisible()));await page.goForward();await page.waitForURL('**/?view=create');assert.equal(await prompt.inputValue(),'My retained draft');await fits();
   await page.goto(base+'/?view=persona');await page.locator('.profile-identity-body').waitFor();await settled();
   const identity=await page.locator('.creator-identity').boundingBox(),grid=await page.locator('.persona-preview').boundingBox(),details=await page.locator('.persona-preview-section').first().boundingBox();
   if(width>900){assert(Math.abs(identity.x-grid.x)<1&&details.width>identity.width,'Identity is narrower than Core profile');assert(Math.abs(identity.y-details.y)<1,'Top sections align');assert(details.x>=identity.x+identity.width,'Core profile sits to the right');assert(Math.abs(details.x+details.width-grid.x-grid.width)<1,'Core profile reaches right edge');}
@@ -55,7 +52,7 @@ const assert=require('node:assert/strict');
   await page.getByLabel('URL or keywords',{exact:true}).fill('https://instagram.com/studio');await settled();assert.equal(await page.evaluate(()=>window.researchEntrances.length),entrances.length,'Typing does not replay rows');
   await fits();assert.equal(await page.locator('.research-history-entry').count(),13,'All saved, running and failed searches remain visible');assert(await page.locator('#research-history-list').evaluate(e=>e.scrollHeight===e.clientHeight&&getComputedStyle(e).overflowY==='visible'));console.log('PASS merged content, profile and Research at',width);
  }
- await page.goto(base+'/?view=create');await page.waitForURL('**/?view=publish&compose=1');await page.reload();await page.locator('.create-page').waitFor();assert.equal(await page.getByRole('heading',{name:'My Contents',exact:true,level:1}).count(),1,'Legacy and canonical links open same page');
+ await page.goto(base+'/?view=publish&compose=1');await page.waitForURL('**/?view=create');await page.reload();await page.locator('.create-page').waitFor();assert.equal(await page.getByRole('heading',{name:'Create Content',exact:true,level:1}).count(),1,'Legacy and canonical links open same page');
  await page.emulateMedia({reducedMotion:'reduce'});await page.goto(base+'/?view=research');await page.locator('.research-recent').waitFor();assert.equal(await page.evaluate(()=>window.researchEntrances.length),0);assert.equal(await page.locator('.page-motion').evaluate(el=>el.getAnimations({subtree:true}).length),0);
  assert.deepEqual(writes,[]);assert.deepEqual(errors,[]);await browser.close();console.log('PASS merged content workspace at 8 widths: stable library/draft, keyboard focus, back/forward and legacy refresh; asymmetric profile top row with full-width sections, contained search controls, all 13 recent searches sharing the page scroll, quick rows and reduced motion. No provider writes.');
 })().catch(e=>{console.error(e);process.exit(1)});

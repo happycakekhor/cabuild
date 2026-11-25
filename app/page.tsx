@@ -27,6 +27,7 @@ import {
   Eye,
   FileText,
   Film,
+  FolderOpen,
   Globe,
   Mic,
   Lightbulb,
@@ -336,7 +337,7 @@ export default function Home() {
   const approvedHistoryTarget = useRef<number | null>(null);
 
   const navigateScreen = useCallback(async (nextScreen: string, sourceId?: string) => {
-    const nextUrl = nextScreen === "home" ? "/" : nextScreen === "create" ? `/?view=publish&compose=1${sourceId ? `&source=${encodeURIComponent(sourceId)}` : ""}` : `/?view=${encodeURIComponent(nextScreen)}`;
+    const nextUrl = nextScreen === "home" ? "/" : nextScreen === "create" ? `/?view=create${sourceId ? `&source=${encodeURIComponent(sourceId)}` : ""}` : `/?view=${encodeURIComponent(nextScreen)}`;
     if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== nextUrl) {
       if (!await confirmLeave()) return;
       window.history.pushState({ ...window.history.state, creatorIndex: ++historyIndex.current }, "", nextUrl);
@@ -347,6 +348,17 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [confirmLeave]);
 
+  const previousScreen = useRef(screen);
+  useEffect(() => {
+    if (loading) return;
+    if (screen === "create") {
+      const heading = document.querySelector<HTMLElement>(".create-route h1");
+      if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); }
+    } else if (screen === "publish" && previousScreen.current === "create") {
+      document.getElementById("content-editor-toggle")?.focus({ preventScroll: true });
+    }
+    previousScreen.current = screen;
+  }, [screen, loading]);
   async function refresh() {
     const res = await fetch("/api/app", { cache: "no-store" });
     if (res.status === 401) {
@@ -375,7 +387,7 @@ export default function Home() {
       const view = requested === "publish" && params.get("compose") === "1" ? "create" : requested;
       if (view === "create") {
         setCreateSourceId(params.get("source")); setComposerMounted(true);
-        if (requested === "create") { params.set("view", "publish"); params.set("compose", "1"); window.history.replaceState(window.history.state, "", `/?${params.toString()}`); }
+        if (requested === "publish") { params.set("view", "create"); params.delete("compose"); window.history.replaceState(window.history.state, "", `/?${params.toString()}`); }
       }
       setScreen(view && normalViews.has(view) ? view : "home");
     };
@@ -447,7 +459,7 @@ export default function Home() {
         <header className="topbar">
           <GlobalHeader
             activeMode={screen === "home" || screen === "account" || screen === "settings" ? null : "normal"}
-            activePage={screen === "create" ? "publish" : screen}
+            activePage={screen}
             initialAccount={data.user}
             initialWorkspaceCredits={data.workspace.credits}
             onBeforeLeave={confirmLeave}
@@ -456,7 +468,7 @@ export default function Home() {
           />
         </header>
 
-        <PageMotion pageKey={screen === "create" ? "publish" : screen}>
+        <PageMotion pageKey={screen}>
         {screen === "home" ? (
           <section className="panel active">
             <HomePanel data={data} setScreen={navigateScreen} openDrama={() => router.push("/drama-studio?step=1")} />
@@ -467,7 +479,13 @@ export default function Home() {
               {screen === "audit" && <SocialAuditPanel data={data} run={run} onNavigate={navigateScreen} />}
               {screen === "persona" && <PersonaPanel data={data} run={run} onEditingChange={setPersonaEditing} />}
               {screen === "research" && <IntelligencePanel data={data} run={run} refresh={refresh} setDirectCreateInitial={(initial) => { void navigateScreen("create", initial.sourceResultId); }} />}
-              {(screen === "create" || screen === "publish") && <PublishPanel data={data} run={run} pendingGeneration={pendingGeneration} composing={screen === "create"} generationVersion={generationVersion} onCreate={() => navigateScreen("create", composerMounted ? createSourceId || undefined : undefined)} onLibrary={() => navigateScreen("publish")} composer={composerMounted ? <CreateContentPanel key={createSourceId || "direct"} sourceId={createSourceId} data={data} run={run} onClose={() => navigateScreen("publish")} onComplete={() => {setComposerMounted(false);setCreateSourceId(null);setGenerationVersion(version=>version+1);void navigateScreen("publish");}} setPendingGeneration={setPendingGeneration} /> : undefined} />}
+              {(screen === "create" || screen === "publish") && <div className="content-workspace">
+                <div className="create-route" hidden={screen !== "create"}>
+                  <CreatorPageHeader title="Create Content" art="create"><button type="button" onClick={() => navigateScreen("publish")}><ArrowLeft size={17}/>Back to My Contents</button></CreatorPageHeader>
+                  {composerMounted && <CreateContentPanel key={createSourceId || "direct"} sourceId={createSourceId} data={data} run={run} onClose={() => navigateScreen("publish")} onComplete={() => {setComposerMounted(false);setCreateSourceId(null);setGenerationVersion(version=>version+1);void navigateScreen("publish");}} setPendingGeneration={setPendingGeneration} />}
+                </div>
+                <div hidden={screen !== "publish"}><PublishPanel data={data} run={run} pendingGeneration={pendingGeneration} generationVersion={generationVersion} onCreate={() => navigateScreen("create", composerMounted ? createSourceId || undefined : undefined)} /></div>
+              </div>}
               {screen === "drama" && <DramaWorkspacePanel src="/drama-studio" title="Drama Studio" refresh={refresh} />}
               {screen === "asset-library" && <DramaWorkspacePanel src="/drama-studio/assets" title="Asset Library" refresh={refresh} />}
               {screen === "automation" && <AutomationPanel data={data} run={run} refresh={refresh} />}
@@ -1578,6 +1596,7 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
   const aiBusy = useRef(false);
   const [aiError, setAiError] = useState("");
   const [aiIdea, setAiIdea] = useState("");
+  const [referencesOpen, setReferencesOpen] = useState(false);
   const [briefModel, setBriefModel] = useState<BriefModelId>("gpt-5-5");
   const [assetRefs, setAssetRefs] = useState<AssetReference[]>([]);
   const [selectedPersonaAssetIds, setSelectedPersonaAssetIds] = useState<string[]>(() => personaAssets.map(asset => asset.id));
@@ -1700,102 +1719,44 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
       setBusy(false);
     }
   };
+  const referenceCount = visualAssetsEnabled ? assetRefs.filter(asset => kind === "video" || asset.role !== "audio").length + personaAssets.filter(asset => usePersona && selectedPersonaAssetIds.includes(asset.id) && (kind === "video" || asset.role !== "audio")).length : 0;
   return (
-    <form key={formVersion} onSubmit={(event) => { event.preventDefault(); void submit(new FormData(event.currentTarget)); }} className="generation-form create-generation-form creation-studio">
+    <form key={formVersion} onSubmit={(event) => { event.preventDefault(); void submit(new FormData(event.currentTarget)); }} className="generation-form create-generation-form creation-studio quick-create">
       <fieldset className="creation-fields" disabled={busy || aiGenerating}>
-      <div className="studio-recipe" aria-label="Selected output settings"><span className="studio-recipe-platform"><PlatformIcon platform={platform}/><b>{platform}</b></span><span>{kind === "video" ? <Film size={17}/> : kind === "image" ? <ImageIcon size={17}/> : <FileText size={17}/>} {kind === "text" ? "Text post" : kind === "image" ? `${variants} ${variants === "1" ? "image" : "images"}` : "Video"}</span><span>{generationModels[kind].find(([value])=>value===model)?.[1] || model}</span>{kind !== "text" && <span><AspectRatioIcon value={aspectRatio}/>{aspectRatio}</span>}{kind === "video" && <span><Clock3 size={16}/>{model === "veo-fast" ? "8" : duration}s</span>}</div>
-      <section className="create-card creation-persona">
-        <h2 className="creator-section-title"><UserRound size={22} aria-hidden="true" />Persona</h2>
-        <div className="persona-choice-grid">
-          <button type="button" aria-pressed={usePersona} className={usePersona ? "on" : ""} onClick={() => { if (!usePersona) setSelectedPersonaAssetIds(personaAssets.filter(asset => !assetRefs.some(upload => upload.role === asset.role)).map(asset => asset.id)); setUsePersona(true); }}><PersonaMark persona={persona} /><span><b>{persona?.displayName || "Saved persona"}</b><small>{[persona?.role, persona?.company].filter(Boolean).join(" · ") || "Saved profile"}</small></span></button>
-          <button type="button" aria-pressed={!usePersona} className={!usePersona ? "on" : ""} onClick={() => { setUsePersona(false); setSelectedPersonaAssetIds([]); }}><Sparkles size={22} /><span><b>No persona</b><small>Brief and uploads only</small></span></button>
-        </div>
-        {!usePersona && <p className="muted">Saved persona context and references will not be added. Review any text already in your brief before generating.</p>}
-      </section>
-      <section className="create-card creation-brief">
-        <div className="optional-brief-heading"><Sparkles size={22} /><h2>Generate Brief</h2><span className="badge">Optional</span></div>
-        {activeInitial.sourceLabel !== "Direct generation" && <div className="brief-preview">
-          <span>{activeInitial.sourceLabel}</span>
-          <b>{activeInitial.sourceTitle}</b>
-          <p>{activeInitial.sourceDescription}</p>
-        </div>}
-        {onUsePlan && <div className="source-actions"><button type="button" className="linkish secondary-plan-link" onClick={onUsePlan}>Load from Content Plan</button></div>}
-
-        {allowAiAssist && (
-          <div className="ai-plan-box compact">
-            <div className="ai-plan-inner">
-              <label>Your idea
-                <textarea name="idea" disabled={aiGenerating} value={aiIdea} onChange={(event) => setAiIdea(event.target.value)} placeholder="e.g. A short product demo for small business owners" />
-              </label>
-              {aiError && <div role="alert" className="provider-error">{aiError}</div>}
-              <div className="brief-footer">
-                <div className="brief-tools"><label className="brief-model-select">Brief model<select name="briefModel" value={briefModel} disabled={aiGenerating} onChange={event => setBriefModel(event.target.value as BriefModelId)}>{BRIEF_MODELS.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label><KieModelBalances /></div>
-                <div className="row-actions brief-actions">
-                <button className="primary" type="button" onClick={() => void generateAiDraft()} disabled={aiGenerating}><Sparkles size={14} />{aiGenerating ? <AnimatedDots label="Preparing brief" /> : aiError ? "Try again" : "Generate Brief"}</button>
-                <button type="button" onClick={() => { setAiIdea(""); setAiError(""); }} disabled={aiGenerating || (!aiIdea && !aiError)}>Clear</button>
-                </div>
-              </div>
-            </div>
+        <section className="create-card studio-prompt-panel">
+          <div className="studio-section-heading"><span className="studio-step">1</span><div><h2>Describe your content</h2><p>A clear idea is all you need to start.</p></div></div>
+          {activeInitial.sourceLabel !== "Direct generation" && <div className="studio-source"><span>{activeInitial.sourceLabel}</span><b>{activeInitial.sourceTitle}</b></div>}
+          <label className="studio-prompt-label">Generation prompt<textarea aria-label="Generation prompt" required name="prompt" defaultValue={activeInitial.prompt} placeholder="Describe your subject, the message and the style you want. For example: a warm, natural product demo showing how our coffee fits into a busy morning." /></label>
+          <div className="studio-prompt-tools"><span>Be specific about what to show or say.</span>{visualAssetsEnabled && <button type="button" onClick={() => setReferencesOpen(true)}><Plus size={16}/>References{referenceCount > 0 && <span className="studio-count">{referenceCount}</span>}</button>}</div>
+          {allowAiAssist && <details className="studio-disclosure creation-brief"><summary><Sparkles size={17}/><span>Help me write a brief</span><small>Optional</small></summary><div className="studio-disclosure-body">
+            <p>Turn a short idea into an editable prompt and caption. This does not generate the final asset.</p>
+            <label>Your idea<textarea aria-label="Your idea" name="idea" value={aiIdea} onChange={event => setAiIdea(event.target.value)} placeholder="e.g. Introduce our new coffee blend to busy founders" /></label>
+            {aiError && <div role="alert" className="provider-error">{aiError}</div>}
+            <div className="studio-assist-actions"><label>Brief model<select aria-label="Brief model" name="briefModel" value={briefModel} onChange={event => setBriefModel(event.target.value as BriefModelId)}>{BRIEF_MODELS.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label><button type="button" onClick={() => void generateAiDraft()} disabled={aiGenerating}><Sparkles size={16}/>{aiGenerating ? <AnimatedDots label="Preparing brief"/> : "Generate Brief"}</button></div>
+          </div></details>}
+          <details className="studio-disclosure studio-publishing-copy"><summary><Pencil size={17}/><span>Caption & hashtags</span><small>Optional</small></summary><div className="studio-disclosure-body"><label>Caption<textarea aria-label="Caption" name="caption" defaultValue={activeInitial.caption} placeholder="Add the caption for your post" /></label><label>Hashtags<input aria-label="Hashtags" name="hashtags" defaultValue={activeInitial.hashtags} placeholder="#YourBrand #YourTopic" /></label></div></details>
+          {onUsePlan && <button type="button" className="linkish" onClick={onUsePlan}>Load from Content Plan</button>}
+        </section>
+        <section className="create-card studio-settings-panel">
+          <div className="studio-section-heading"><span className="studio-step">2</span><div><h2>Choose your output</h2><p>Ready-to-use defaults. Adjust if needed.</p></div></div>
+          <div className="studio-type-options" role="group" aria-label="Content type">{(["video","image","text"] as const).map(value => <button key={value} type="button" aria-pressed={kind === value} className={kind === value ? "on" : ""} onClick={() => changeKind(value)}>{value === "video" ? <Film size={18}/> : value === "image" ? <ImageIcon size={18}/> : <FileText size={18}/>}<span>{value === "text" ? "Text post" : value === "image" ? "Image" : "Video"}</span></button>)}</div>
+          <div className="studio-setting-pair"><label>Primary platform<select aria-label="Primary platform" name="platform" value={platform} onChange={event => setPlatform(event.target.value as Platform)}>{Array.from(new Set([...platforms,"YouTube",platform])).map(value => <option key={value}>{value}</option>)}</select></label><label>Model<select aria-label="Generation model" value={model} onChange={event => changeModel(event.target.value)}>{generationModels[kind].map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>
+          <p className="studio-model-cost">{generationModels[kind].find(([value]) => value === model)?.[2]}</p>
+          <div className="studio-format-options">
+            {kind === "video" && <label>Duration<select aria-label="Duration" name="duration" value={model === "veo-fast" ? "8" : duration} onChange={event => setDuration(event.target.value)}>{durationOptionsForModel(model).map(value => <option key={value} value={value}>{value} seconds</option>)}</select></label>}
+            {kind !== "text" && <label>Aspect ratio<select aria-label="Aspect ratio" name="aspectRatio" value={aspectRatio} onChange={event => setAspectRatio(event.target.value)}>{(kind === "video" ? ["9:16","16:9"] : ["1:1","4:5","16:9","9:16"]).map(value => <option key={value}>{value}</option>)}</select></label>}
+            {kind === "image" && <label>Variants<select aria-label="Variants" name="variants" value={variants} onChange={event => setVariants(event.target.value)}>{["1","2","3","4"].map(value => <option key={value}>{value}</option>)}</select></label>}
+            {kind === "text" && <><label>Tone<select aria-label="Tone" name="tone" value={tone} onChange={event => setTone(event.target.value)}>{["Practical founder-led","Educational","Contrarian","Executive concise"].map(value => <option key={value}>{value}</option>)}</select></label><label>Length<select aria-label="Length" name="length" value={length} onChange={event => setLength(event.target.value)}>{["Short","Medium","Long"].map(value => <option key={value}>{value}</option>)}</select></label></>}
           </div>
-        )}
-      </section>
-
-      <section className="create-card creation-settings">
-        <div className="step-label"><SlidersHorizontal size={22} aria-hidden="true" />Format & settings</div>
-        <div className="creation-platform-row"><ChoiceButtons label="Primary platform" name="platform" value={platform} options={Array.from(new Set([...platforms, "YouTube"])).map(value => ({value,label:value,icon:<PlatformIcon platform={value} />}))} onChange={value => setPlatform(value as Platform)} /></div>
-        <div className="create-type-grid">
-          <button type="button" aria-pressed={kind === "video"} className={kind === "video" ? "on" : ""} onClick={() => changeKind("video")}><Film size={23} /><b>Video</b></button>
-          <button type="button" aria-pressed={kind === "image"} className={kind === "image" ? "on" : ""} onClick={() => changeKind("image")}><ImageIcon size={23} /><b>Image</b></button>
-          <button type="button" aria-pressed={kind === "text"} className={kind === "text" ? "on" : ""} onClick={() => changeKind("text")}><FileText size={23} /><b>Text post</b></button>
-        </div>
-        <div className="plat-row">
-          {placementsForKind(kind).map((label) => <span className="pc on" key={label}><span className="pd" />{label}</span>)}
-        </div>
-        <div className="creation-option-group"><div className="clbl"><Cpu size={19} />Model</div>
-        <div className="model-options create-model-options">
-          {generationModels[kind].map(([value, label, price]) => (
-            <button type="button" key={value} aria-pressed={model === value} className={model === value ? "on" : ""} onClick={() => changeModel(value)}>
-              <span className="mcard-dot" />
-              <b>{label}</b>
-              <span>{price}</span>
-            </button>
-          ))}
-        </div></div>
-
-        <div className="creation-option-group">
-        <div className="clbl"><SlidersHorizontal size={19} />Generation settings</div>
-        <div className="generation-choice-grid" data-video={kind === "video"}>
-          {kind === "video" && <fieldset className="creation-duration"><legend>Duration</legend>{model === "veo-fast" ? <div className="fixed-duration"><Clock3 size={20} /><b>8 seconds</b><span>Veo Fast</span><input type="hidden" name="duration" value="8" /></div> : <div className="duration-slider"><label htmlFor="creation-duration"><Clock3 size={18} />Video length <output>{duration} seconds</output></label><input id="creation-duration" aria-label="Duration in seconds" type="range" name="duration" min="4" max="15" step="1" value={duration} onChange={event => setDuration(event.target.value)} /><div><span>4 seconds</span><span>15 seconds</span></div></div>}</fieldset>}
-          {kind !== "text" && <div className="creation-aspect-ratio"><ChoiceButtons label="Aspect ratio" name="aspectRatio" value={aspectRatio} options={(kind === "video" ? ["9:16", "16:9"] : ["1:1", "4:5", "16:9", "9:16"]).map(value => ({value,label:value,icon:<AspectRatioIcon value={value} />}))} onChange={setAspectRatio} /></div>}
-          {kind === "image" && <ChoiceButtons label="Variants" name="variants" value={variants} options={["1","2","3","4"].map(value => ({value,label:value}))} onChange={setVariants} />}
-          {kind === "text" && <><ChoiceButtons label="Tone" name="tone" value={tone} options={["Practical founder-led","Educational","Contrarian","Executive concise"].map(value => ({value,label:value}))} onChange={setTone} /><ChoiceButtons label="Length" name="length" value={length} options={["Short","Medium","Long"].map(value => ({value,label:value}))} onChange={setLength} /></>}
-        </div>
-        </div>
-
-      {visualAssetsEnabled && (
-        <div className="creation-option-group">
-          <div className="clbl"><ImageIcon size={19} />Assets</div>
-          <CreationAssets personaAssets={personaAssets} selectedIds={selectedPersonaAssetIds} uploads={assetRefs} usePersona={usePersona} video={kind === "video"} onSelect={selectPersonaAssets} onClear={role => selectPersonaAssets(role, [])} onUpload={(role, file) => { setSelectedPersonaAssetIds(current => current.filter(id => !personaAssets.some(asset => asset.id === id && asset.role === role))); updateAssetRef(role, file); }} />
-        </div>
-      )}
-      </section>
-
-
-      <section className="create-card creation-content">
-        <div className="step-label"><Pencil size={22} aria-hidden="true" />Your content</div>
-        <label>Generation prompt<textarea aria-label="Generation prompt" required name="prompt" defaultValue={activeInitial.prompt} /></label>
-        <label>Caption<textarea name="caption" defaultValue={activeInitial.caption} /></label>
-        <label>Hashtags<input name="hashtags" defaultValue={activeInitial.hashtags} /></label>
-        {submitError && <p className="provider-error" role="alert">{submitError}</p>}
-        <div className="ftrow">
-          <span className="studio-generate-label"><PlatformIcon platform={platform}/>{kind === "text" ? "Text post" : kind === "image" ? "Image" : "Video"}</span>
-          <div className="row-actions">
-            {onCancel && <button type="button" onClick={onCancel}>Cancel</button>}
-            <button className="primary" disabled={busy}><Wand2 size={14} />{busy ? <AnimatedDots label={busyLabel} /> : submitLabel}</button>
-          </div>
-        </div>
-      </section>
+          <div className="studio-persona"><label><UserRound size={16}/>Persona<select aria-label="Persona" value={usePersona ? "saved" : "none"} onChange={event => {const enabled=event.target.value === "saved";setUsePersona(enabled);setSelectedPersonaAssetIds(enabled ? personaAssets.filter(asset => !assetRefs.some(upload => upload.role === asset.role)).map(asset => asset.id) : []);}}><option value="saved">{persona?.displayName || "Saved persona"}</option><option value="none">No persona</option></select></label><p>{usePersona ? "Use your saved voice, audience and selected brand references." : "Use your prompt and uploads only. Review any persona text already in your prompt."}</p></div>
+          <div className="studio-delivery-note"><FolderOpen size={19}/><span>Find your result in <b>My Contents</b>.<small>Generation continues in the background.</small></span></div>
+        </section>
+        <footer className="studio-submit-bar">
+          <div><span className="studio-output-summary"><PlatformIcon platform={platform}/>{platform} · {kind === "text" ? "Text post" : kind === "image" ? "Image" : "Video"}{kind !== "text" && ` · ${aspectRatio}`}{kind === "video" && ` · ${duration}s`}</span>{submitError && <p className="provider-error" role="alert">{submitError}</p>}</div>
+          <div className="row-actions">{onCancel && <button type="button" onClick={onCancel}>Cancel</button>}<button type="submit" className="primary" disabled={busy}><Wand2 size={18}/>{busy ? <AnimatedDots label={busyLabel}/> : submitLabel}</button></div>
+        </footer>
       </fieldset>
+      {referencesOpen && <ContentDialog title="Reference assets" onClose={() => setReferencesOpen(false)}><CreationAssets personaAssets={personaAssets} selectedIds={selectedPersonaAssetIds} uploads={assetRefs} usePersona={usePersona} video={kind === "video"} onSelect={selectPersonaAssets} onClear={role => selectPersonaAssets(role,[])} onUpload={(role,file) => {setSelectedPersonaAssetIds(current => current.filter(id => !personaAssets.some(asset => asset.id === id && asset.role === role)));updateAssetRef(role,file);}}/><div className="dialog-actions"><button type="button" className="primary" onClick={() => setReferencesOpen(false)}>Done</button></div></ContentDialog>}
     </form>
   );
 }
@@ -1980,9 +1941,9 @@ function CreateContentPanel({ sourceId, data, run, onClose, onComplete, setPendi
     kind: "video",
     duration: 8,
     aspectRatio: "9:16",
-    prompt: `Create a founder-led social asset for ${context}. Use a practical hook, concrete example, clean pacing or layout, and a clear CTA.`,
-    caption: `A practical reminder for ${context}: make the message specific, useful, and easy to act on.`,
-    hashtags: "#ContentStrategy, #SocialMedia, #Creator",
+    prompt: "",
+    caption: "",
+    hashtags: "",
     platform: "TikTok"
   };
   const source = sourceId ? data.competitorResults.find(item => item.id === sourceId) : undefined;
@@ -2035,7 +1996,7 @@ function DramaWorkspacePanel({ src, title, refresh }: { src: string; title: stri
   );
 }
 
-function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, composer, composing, generationVersion }: { composing: boolean; generationVersion: number; data: AppData; run: (a: string, p?: Record<string, unknown>, m?: string) => Promise<void>; pendingGeneration: PendingGeneration | null; onCreate: () => void; onLibrary: () => void; composer?: ReactNode }) {
+function PublishPanel({ data, run, pendingGeneration, onCreate, generationVersion }: { generationVersion: number; data: AppData; run: (a: string, p?: Record<string, unknown>, m?: string) => Promise<void>; pendingGeneration: PendingGeneration | null; onCreate: () => void }) {
   const [layout, setLayout] = useState<"grid" | "rows">("grid");
   const layoutKey = `cabuild:content-layout:${data.workspace.id}`;
   useEffect(() => {
@@ -2046,12 +2007,6 @@ function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, compo
     setLayout(value);
     try { localStorage.setItem(layoutKey, value); } catch { /* Still usable when browser storage is unavailable. */ }
   };
-  const wasComposing = useRef(false);
-  useEffect(() => {
-    if (composing) document.querySelector<HTMLElement>("#content-editor h2")?.focus({preventScroll:true});
-    else if (wasComposing.current) document.getElementById("content-editor-toggle")?.focus({preventScroll:true});
-    wasComposing.current = composing;
-  }, [composing]);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -2133,10 +2088,8 @@ function PublishPanel({ data, run, pendingGeneration, onCreate, onLibrary, compo
     <div className="publish-page">
 
       {infoItem && <ContentInfo item={infoItem} asset={data.assets.find(asset => asset.id === infoItem.assetId)} brief={data.briefs.find(brief => brief.id === data.assets.find(asset => asset.id === infoItem.assetId)?.briefId)} onClose={() => setInfoId(null)} />}
-      <CreatorPageHeader title="My Contents" art="library"><button id="content-editor-toggle" type="button" className={composing ? "" : "primary"} aria-expanded={composing} aria-controls="content-editor" onClick={composing ? onLibrary : onCreate}>{composing ? <><ArrowUp size={17}/>Hide editor</> : <><Plus size={17}/>Create Content</>}</button>
-      </CreatorPageHeader>
+      <CreatorPageHeader title="My Contents" art="library"><button id="content-editor-toggle" type="button" className="primary" onClick={onCreate}><Plus size={17}/>Create Content</button></CreatorPageHeader>
       {generationNotice && <div className="generation-notice">{generationNotice}</div>}
-      <section id="content-editor" className="integrated-content-editor" aria-label="Create Content" hidden={!composing}><div className="integrated-editor-heading"><h2 tabIndex={-1}><Sparkles size={21}/>Create Content</h2><button type="button" onClick={()=>{document.getElementById("content-library")?.focus({preventScroll:true});document.getElementById("content-library")?.scrollIntoView({block:"start",behavior:"auto"});}}><Clock3 size={16}/>View contents</button></div>{composer}</section>
       <section id="content-library" tabIndex={-1} className="content-library-filters" aria-label="Filter and sort contents">
         <div className="library-view-heading"><h2><Clock3 size={20}/>Content history</h2><div className="library-view-actions"><span aria-live="polite">{visibleQueue.length} of {queue.length} records</span><div className="library-layout-switch" role="group" aria-label="Content layout"><button type="button" aria-label="Grid view" aria-pressed={layout === "grid"} onClick={() => changeLayout("grid")}><LayoutGrid size={16} aria-hidden="true" />Grid</button><button type="button" aria-label="Rows view" aria-pressed={layout === "rows"} onClick={() => changeLayout("rows")}><List size={16} aria-hidden="true" />Rows</button></div></div></div>
         <div className="creator-library-toolbar">
