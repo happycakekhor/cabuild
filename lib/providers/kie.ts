@@ -417,6 +417,24 @@ export function buildFinalVideoPromptInstruction(prompt: string, template?: stri
   return `${source}\n\nUser instruction to transform:\n${prompt}`;
 }
 
+export async function generatePublishingCopyWithGpt55(instruction: string) {
+  const apiToken = await token();
+  if (!apiToken) throw new Error("Publishing copy provider is not configured.");
+  const res = await fetch(`${baseUrl}/codex/v1/responses`, {
+    method: "POST",
+    signal: AbortSignal.timeout(90_000),
+    headers: { Authorization: `Bearer ${apiToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "gpt-5-5", stream: false, input: [{ role: "user", content: [{ type: "input_text", text: instruction }] }], reasoning: { effort: "medium" } })
+  });
+  if (!res.ok) throw new Error(`Publishing copy provider returned HTTP ${res.status}.`);
+  const parsed = await res.json() as KieResponsesResponse;
+  if (parsed.error || (parsed.status && parsed.status !== "completed")) throw new Error("Publishing copy provider did not complete.");
+  const content = (Array.isArray(parsed.output) ? parsed.output : []).flatMap(item => Array.isArray(item.content) ? item.content : []).filter(item => item.type === "output_text").map(item => item.text || "").join("");
+  const copy = extractJson(content) as { caption?: unknown; hashtags?: unknown };
+  if (!copy || typeof copy !== "object" || Array.isArray(copy)) throw new Error("Publishing copy provider returned invalid copy.");
+  return copy;
+}
+
 export async function generateFinalVideoPromptWithGpt55(prompt: string, template?: string) {
   const apiToken = await token();
   if (!apiToken) throw new Error("KIE_API_TOKEN is not configured.");

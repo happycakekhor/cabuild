@@ -1,4 +1,11 @@
 # CABuild Project Handoff
+## 2026-11-28 — Three-section Create Content and publishing copy
+
+- Create Content now keeps prompt/caption/hashtags in the left panel, with output settings (2) and a separate Persona section (3) stacked on the right. References moved out of the prompt into Persona. The brief helper and copy disclosure were removed; the standalone Persona page remains unchanged. Persona master/asset switches retain their popup and draft behavior.
+- Caption and hashtag fields start empty, each with Generated / User input controls. Mode switching preserves manual drafts. Blank fields generate automatically; explicit user text is preserved. Research source context remains in the content prompt while publishing copy starts empty as requested.
+- Direct generation resolves missing/generated publishing copy using the existing Kie GPT-5.5 Responses integration, before queuing media. The prompt includes platform, content and only the current workspace's enabled Persona. Both manual nonempty fields skip that provider request. Invalid/failed copy returns a recoverable error and creates no media job; generic SME fallback copy is removed. Resolved modes are recorded in generation settings. No migration or dependency changes.
+- `tools/uat/publishing-copy.cjs` runs the real API handler, resolver and provider against fixture transport/storage; creation browser UAT covers three-section positioning, default empty fields, mode switching and the retained generation/reference/research flows. Release evidence is in the persistent log.
+
 ## 2026-11-28 — Full-width library and Persona toggles
 
 - My Contents now fills the available workspace width in Grid and Rows, including wide desktop displays. Removed the inherited 1120px cap within the dedicated content workspace; page gutters and unrelated screens are preserved.

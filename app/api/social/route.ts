@@ -1,4 +1,6 @@
 import { nextScheduledRun, normalizeAutomationSchedule } from "@/lib/automation-schedule";
+import { resolvePublishingCopy } from "@/lib/publishing-copy";
+import { generatePublishingCopyWithGpt55 } from "@/lib/providers/kie";
 import { runScheduledAutomation, generateAutomationDraft } from "@/lib/automation-runner";
 import { NextResponse } from "next/server";
 import { currentUser } from "@/lib/session";
@@ -2378,6 +2380,18 @@ export async function POST(req: Request) {
     } finally { await mutateDb(db=>{const row=db.automationSourceWatchers.find(item=>item.id===watcher.id&&item.workspaceId===workspaceId);if(row)row.runningUntil=undefined;}); }
   }
 
+  if (action === "generateDirectContent") {
+    if (!String(body.prompt || "").trim()) return NextResponse.json({ error: "Describe your content before generating." }, { status: 400 });
+    try {
+      const personaContext = body.usePersona === false ? "" : await mutateDb(db => buildPersonaContext(db.personaProfiles.find(item => item.workspaceId === workspaceId)));
+      const copy = await resolvePublishingCopy({ prompt: String(body.prompt), platform: String(body.platform || "TikTok"), generationType: String(body.generationType || "video"), personaContext, caption: body.caption, hashtags: body.hashtags, captionMode: body.captionMode, hashtagsMode: body.hashtagsMode }, generatePublishingCopyWithGpt55);
+      Object.assign(body, copy);
+    } catch {
+      await debugLog(workspaceId, { action, label: "Publishing copy generation failed before content was queued", status: "failed", provider: "kie", error: "Caption or hashtags could not be generated." });
+      return NextResponse.json({ error: "Caption or hashtags could not be generated. Your inputs are still here. Try again or enter both fields yourself." }, { status: 502 });
+    }
+  }
+
   const data = await mutateDb((db) => {
     const activity = (message: string) => db.activity.push({ id: id("act"), workspaceId, message, createdAt: new Date().toISOString() });
 
@@ -2787,11 +2801,13 @@ export async function POST(req: Request) {
       const selectedPersona = body.usePersona === false ? undefined : db.personaProfiles.find((item) => item.workspaceId === workspaceId);
       const personaContext = buildPersonaContext(selectedPersona);
       const basePrompt = enrichPromptWithAssetReferences(appendPersonaContext(String(body.prompt || `Create a practical founder-led social post for ${context}.`), personaContext), generationType, assetReferences);
-      const caption = String(body.caption || "A practical reminder for SME teams: automate repeatable work first.");
-      const hashtags = parseList(body.hashtags || "#SME, #Automation, #AI");
+      const caption = String(body.caption);
+      const hashtags = parseList(body.hashtags);
       const platform = (String(body.platform || "TikTok") as Platform);
       const generationSettings = {
         source: "content-creator",
+        captionMode: String(body.captionMode || "user"),
+        hashtagsMode: String(body.hashtagsMode || "user"),
         usePersona: body.usePersona !== false,
         personaName: selectedPersona?.displayName || "",
         inputPrompt: String(body.prompt || ""),

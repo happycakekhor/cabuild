@@ -1576,7 +1576,7 @@ function BriefPanel({ data, run, setScreen, pendingPlan, setPendingGeneration }:
   );
 }
 
-function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, onCancel, onUsePlan, onStart, submitLabel = "Generate", busyLabel = "Sending to Publish", allowAiAssist = false }: { initial: CreateContentInitial; persona?: PersonaProfile; personaAssets?: PersonaMediaAsset[]; onSubmit: (payload: Record<string, unknown>) => Promise<void>; onCancel?: () => void; onUsePlan?: () => void; onStart?: (generation: PendingGeneration) => void; submitLabel?: string; busyLabel?: string; allowAiAssist?: boolean }) {
+function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, onCancel, onUsePlan, onStart, submitLabel = "Generate", busyLabel = "Sending to Publish" }: { initial: CreateContentInitial; persona?: PersonaProfile; personaAssets?: PersonaMediaAsset[]; onSubmit: (payload: Record<string, unknown>) => Promise<void>; onCancel?: () => void; onUsePlan?: () => void; onStart?: (generation: PendingGeneration) => void; submitLabel?: string; busyLabel?: string }) {
   const initialKey = JSON.stringify([initial.sourceLabel, initial.sourceTitle, initial.sourceDescription, initial.prompt, initial.caption, initial.hashtags, initial.kind, initial.model, initial.duration, initial.aspectRatio, initial.platform]);
   const appliedInitialKey = useRef(initialKey);
   const [activeInitial, setActiveInitial] = useState<CreateContentInitial>(initial);
@@ -1593,13 +1593,12 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
   const [submitError, setSubmitError] = useState("");
   const submitBusy = useRef(false);
   const [busy, setBusy] = useState(false);
-  const [aiGenerating, setAiGenerating] = useState(false);
-  const aiBusy = useRef(false);
-  const [aiError, setAiError] = useState("");
-  const [aiIdea, setAiIdea] = useState("");
+  const [captionMode, setCaptionMode] = useState<"generated" | "user">("generated");
+  const [hashtagsMode, setHashtagsMode] = useState<"generated" | "user">("generated");
+  const [captionInput, setCaptionInput] = useState("");
+  const [hashtagsInput, setHashtagsInput] = useState("");
   const [referencesOpen, setReferencesOpen] = useState(false);
   const [personaOpen, setPersonaOpen] = useState(false);
-  const [briefModel, setBriefModel] = useState<BriefModelId>("gpt-5-5");
   const [assetRefs, setAssetRefs] = useState<AssetReference[]>([]);
   const [selectedPersonaAssetIds, setSelectedPersonaAssetIds] = useState<string[]>(() => personaAssets.map(asset => asset.id));
   const assetRefsRef = useRef<AssetReference[]>([]);
@@ -1607,6 +1606,7 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
   const resetFormFromInitial = (next: CreateContentInitial) => {
     const nextModel = next.model || generationModels[next.kind][0][0];
     setActiveInitial(next);
+    setCaptionMode("generated"); setHashtagsMode("generated"); setCaptionInput(""); setHashtagsInput("");
     setKind(next.kind);
     setModel(nextModel);
     setAspectRatio(next.aspectRatio || (next.kind === "image" ? "4:5" : "9:16"));
@@ -1653,34 +1653,6 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
     updateAssetRef(role, null);
     setSelectedPersonaAssetIds(current => [...current.filter(id => !personaAssets.some(asset => asset.id === id && asset.role === role)), ...ids]);
   };
-  const generateAiDraft = async () => {
-    if (aiBusy.current) return;
-    const idea = aiIdea.trim();
-    if (!idea) {
-      setAiError("Tell me what you want to create first.");
-      return;
-    }
-    setAiError("");
-    aiBusy.current = true;
-    setAiGenerating(true);
-    try {
-      const draft = await post("generateBriefWithAi", {
-        idea,
-        briefModel,
-        usePersona,
-        requestedFormat: preferredFormatForKind(kind, aspectRatio),
-        requestedDuration: kind === "video" ? duration : undefined,
-        requestedModel: model
-      }) as PlanDraft;
-      resetFormFromInitial(createContentInitialFromDraft(draft));
-      setAiIdea("");
-    } catch (error) {
-      setAiError(error instanceof Error ? error.message : "AI generation failed.");
-    } finally {
-      aiBusy.current = false;
-      setAiGenerating(false);
-    }
-  };
   const submit = async (form: FormData) => {
     if (submitBusy.current) return;
     submitBusy.current = true;
@@ -1703,8 +1675,10 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
         platform: selectedPlatform,
         usePersona,
         prompt,
-        caption: String(form.get("caption") || ""),
-        hashtags: String(form.get("hashtags") || ""),
+        caption: captionMode === "user" ? captionInput : "",
+        captionMode,
+        hashtags: hashtagsMode === "user" ? hashtagsInput : "",
+        hashtagsMode,
         aspectRatio: String(form.get("aspectRatio") || ""),
         variants: String(form.get("variants") || ""),
         tone: String(form.get("tone") || ""),
@@ -1724,19 +1698,22 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
   const referenceCount = visualAssetsEnabled ? assetRefs.filter(asset => kind === "video" || asset.role !== "audio").length + personaAssets.filter(asset => usePersona && selectedPersonaAssetIds.includes(asset.id) && (kind === "video" || asset.role !== "audio")).length : 0;
   return (
     <form key={formVersion} onSubmit={(event) => { event.preventDefault(); void submit(new FormData(event.currentTarget)); }} className="generation-form create-generation-form creation-studio quick-create">
-      <fieldset className="creation-fields" disabled={busy || aiGenerating}>
+      <fieldset className="creation-fields" disabled={busy}>
         <section className="create-card studio-prompt-panel">
           <div className="studio-section-heading"><span className="studio-step">1</span><div><h2>Describe your content</h2><p>A clear idea is all you need to start.</p></div></div>
           {activeInitial.sourceLabel !== "Direct generation" && <div className="studio-source"><span>{activeInitial.sourceLabel}</span><b>{activeInitial.sourceTitle}</b></div>}
           <label className="studio-prompt-label">Generation prompt<textarea aria-label="Generation prompt" required name="prompt" defaultValue={activeInitial.prompt} placeholder="Describe your subject, the message and the style you want. For example: a warm, natural product demo showing how our coffee fits into a busy morning." /></label>
-          <div className="studio-prompt-tools"><span>Be specific about what to show or say.</span>{visualAssetsEnabled && <button type="button" onClick={() => setReferencesOpen(true)}><Plus size={16}/>References{referenceCount > 0 && <span className="studio-count">{referenceCount}</span>}</button>}</div>
-          {allowAiAssist && <details className="studio-disclosure creation-brief"><summary><Sparkles size={17}/><span>Help me write a brief</span><small>Optional</small></summary><div className="studio-disclosure-body">
-            <p>Turn a short idea into an editable prompt and caption. This does not generate the final asset.</p>
-            <label>Your idea<textarea aria-label="Your idea" name="idea" value={aiIdea} onChange={event => setAiIdea(event.target.value)} placeholder="e.g. Introduce our new coffee blend to busy founders" /></label>
-            {aiError && <div role="alert" className="provider-error">{aiError}</div>}
-            <div className="studio-assist-actions"><label>Brief model<select aria-label="Brief model" name="briefModel" value={briefModel} onChange={event => setBriefModel(event.target.value as BriefModelId)}>{BRIEF_MODELS.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label><button type="button" onClick={() => void generateAiDraft()} disabled={aiGenerating}><Sparkles size={16}/>{aiGenerating ? <AnimatedDots label="Preparing brief"/> : "Generate Brief"}</button></div>
-          </div></details>}
-          <details className="studio-disclosure studio-publishing-copy"><summary><Pencil size={17}/><span>Caption & hashtags</span><small>Optional</small></summary><div className="studio-disclosure-body"><label>Caption<textarea aria-label="Caption" name="caption" defaultValue={activeInitial.caption} placeholder="Add the caption for your post" /></label><label>Hashtags<input aria-label="Hashtags" name="hashtags" defaultValue={activeInitial.hashtags} placeholder="#YourBrand #YourTopic" /></label></div></details>
+          <div className="studio-publishing-copy">
+            <div className="studio-copy-field">
+              <div className="studio-copy-heading"><label htmlFor="creation-caption">Caption</label><div className="studio-copy-mode" role="group" aria-label="Caption source">{(["generated", "user"] as const).map(mode => <button key={mode} type="button" aria-pressed={captionMode === mode} onClick={() => setCaptionMode(mode)}>{mode === "generated" ? "Generated" : "User input"}</button>)}</div></div>
+              <textarea id="creation-caption" aria-label="Caption" name="caption" disabled={captionMode === "generated"} value={captionMode === "user" ? captionInput : ""} onChange={event => setCaptionInput(event.target.value)} placeholder={captionMode === "generated" ? "Generated when you create content" : "Write your caption, or leave empty to generate"}/>
+            </div>
+            <div className="studio-copy-field">
+              <div className="studio-copy-heading"><label htmlFor="creation-hashtags">Hashtags</label><div className="studio-copy-mode" role="group" aria-label="Hashtags source">{(["generated", "user"] as const).map(mode => <button key={mode} type="button" aria-pressed={hashtagsMode === mode} onClick={() => setHashtagsMode(mode)}>{mode === "generated" ? "Generated" : "User input"}</button>)}</div></div>
+              <input id="creation-hashtags" aria-label="Hashtags" name="hashtags" disabled={hashtagsMode === "generated"} value={hashtagsMode === "user" ? hashtagsInput : ""} onChange={event => setHashtagsInput(event.target.value)} placeholder={hashtagsMode === "generated" ? "Generated when you create content" : "#YourBrand #YourTopic"}/>
+            </div>
+            <p>Empty fields are generated from your content. Your own text is kept as entered.</p>
+          </div>
           {onUsePlan && <button type="button" className="linkish" onClick={onUsePlan}>Load from Content Plan</button>}
         </section>
         <section className="create-card studio-settings-panel">
@@ -1750,8 +1727,11 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
             {kind === "image" && <label>Variants<select aria-label="Variants" name="variants" value={variants} onChange={event => setVariants(event.target.value)}>{["1","2","3","4"].map(value => <option key={value}>{value}</option>)}</select></label>}
             {kind === "text" && <><label>Tone<select aria-label="Tone" name="tone" value={tone} onChange={event => setTone(event.target.value)}>{["Practical founder-led","Educational","Contrarian","Executive concise"].map(value => <option key={value}>{value}</option>)}</select></label><label>Length<select aria-label="Length" name="length" value={length} onChange={event => setLength(event.target.value)}>{["Short","Medium","Long"].map(value => <option key={value}>{value}</option>)}</select></label></>}
           </div>
-          <div className="studio-persona"><button type="button" className="studio-persona-status" aria-label={`Persona: ${usePersona ? "Using" : "Not using"}`} aria-haspopup="dialog" onClick={() => setPersonaOpen(true)}><span><UserRound size={16}/>Persona</span><span className={usePersona ? "persona-status using" : "persona-status"}>{usePersona ? "Using" : "Not using"}</span><ChevronRight size={16}/></button></div>
-          <div className="studio-delivery-note"><FolderOpen size={19}/><span>Find your result in <b>My Contents</b>.<small>Generation continues in the background.</small></span></div>
+        </section>
+        <section className="create-card studio-persona-panel" aria-label="Persona for this content">
+          <div className="studio-section-heading"><span className="studio-step">3</span><div><h2>Persona</h2><p>Choose the voice and assets for this content.</p></div></div>
+          <div className="studio-persona-actions"><div className="studio-persona"><button type="button" className="studio-persona-status" aria-label={`Persona: ${usePersona ? "Using" : "Not using"}`} aria-haspopup="dialog" onClick={() => setPersonaOpen(true)}><span><UserRound size={16}/>Persona</span><span className={usePersona ? "persona-status using" : "persona-status"}>{usePersona ? "Using" : "Not using"}</span><ChevronRight size={16}/></button></div>
+          {visualAssetsEnabled && <button type="button" className="studio-references" onClick={() => setReferencesOpen(true)}><Plus size={16}/>References{referenceCount > 0 && <span className="studio-count">{referenceCount}</span>}</button>}</div>
         </section>
         <footer className="studio-submit-bar">
           <div><span className="studio-output-summary"><PlatformIcon platform={platform}/>{platform} · {kind === "text" ? "Text post" : kind === "image" ? "Image" : "Video"}{kind !== "text" && ` · ${aspectRatio}`}{kind === "video" && ` · ${duration}s`}</span>{submitError && <p className="provider-error" role="alert">{submitError}</p>}</div>
@@ -1947,7 +1927,7 @@ function ResearchContentComposer({ initial, persona, personaAssets, run, onClose
           </div>
         )}
         <div hidden={Boolean(promptReview)}>
-          <CreateContentModule initial={initial} persona={persona} personaAssets={personaAssets} allowAiAssist onCancel={onClose} submitLabel="Generate" busyLabel={initial.kind === "video" ? "Preparing your prompt" : "Sending to Publish"} onSubmit={prepareGeneration} />
+          <CreateContentModule initial={initial} persona={persona} personaAssets={personaAssets} onCancel={onClose} submitLabel="Generate" busyLabel={initial.kind === "video" ? "Preparing your prompt" : "Sending to Publish"} onSubmit={prepareGeneration} />
         </div>
       </section>
     </div>
@@ -1977,7 +1957,6 @@ function CreateContentPanel({ sourceId, data, run, onClose, onComplete, setPendi
         initial={initial}
         persona={data.personaProfile}
         personaAssets={data.personaProfile.mediaAssets || []}
-        allowAiAssist
         onCancel={onClose}
         onSubmit={async (payload) => {
           const result = await run("generateDirectContent", {
