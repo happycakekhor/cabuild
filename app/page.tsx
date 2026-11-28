@@ -30,7 +30,6 @@ import {
   FolderOpen,
   Globe,
   Mic,
-  ChevronRight,
   Lightbulb,
   LayoutGrid,
   List,
@@ -1598,7 +1597,6 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
   const [captionInput, setCaptionInput] = useState("");
   const [hashtagsInput, setHashtagsInput] = useState("");
   const [referencesOpen, setReferencesOpen] = useState(false);
-  const [personaOpen, setPersonaOpen] = useState(false);
   const [assetRefs, setAssetRefs] = useState<AssetReference[]>([]);
   const [selectedPersonaAssetIds, setSelectedPersonaAssetIds] = useState<string[]>(() => personaAssets.map(asset => asset.id));
   const assetRefsRef = useRef<AssetReference[]>([]);
@@ -1730,20 +1728,11 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
         </section>
         <section className="create-card studio-persona-panel" aria-label="Persona for this content">
           <div className="studio-section-heading"><span className="studio-step">3</span><div><h2>Persona</h2><p>Choose the voice and assets for this content.</p></div></div>
-          <div className="studio-persona-actions"><div className="studio-persona"><button type="button" className="studio-persona-status" aria-label={`Persona: ${usePersona ? "Using" : "Not using"}`} aria-haspopup="dialog" onClick={() => setPersonaOpen(true)}><span><UserRound size={16}/>Persona</span><span className={usePersona ? "persona-status using" : "persona-status"}>{usePersona ? "Using" : "Not using"}</span><ChevronRight size={16}/></button></div>
-          {visualAssetsEnabled && <button type="button" className="studio-references" onClick={() => setReferencesOpen(true)}><Plus size={16}/>References{referenceCount > 0 && <span className="studio-count">{referenceCount}</span>}</button>}</div>
-        </section>
-        <footer className="studio-submit-bar">
-          <div><span className="studio-output-summary"><PlatformIcon platform={platform}/>{platform} · {kind === "text" ? "Text post" : kind === "image" ? "Image" : "Video"}{kind !== "text" && ` · ${aspectRatio}`}{kind === "video" && ` · ${duration}s`}</span>{submitError && <p className="provider-error" role="alert">{submitError}</p>}</div>
-          <div className="row-actions">{onCancel && <button type="button" onClick={onCancel}>Cancel</button>}<button type="submit" className="primary" disabled={busy}><Wand2 size={18}/>{busy ? <AnimatedDots label={busyLabel}/> : submitLabel}</button></div>
-        </footer>
-      </fieldset>
-      {personaOpen && <ContentDialog title="Persona settings" compact className="studio-persona-dialog" onClose={() => setPersonaOpen(false)}>
         <div className="studio-persona-settings">
           <div className="studio-persona-toggle-row"><div><h3>{persona?.displayName || "Saved persona"}</h3><p>Use your saved voice and audience for this content.</p></div><button type="button" className="studio-switch" role="switch" aria-label="Use Persona" aria-checked={usePersona} onClick={() => setUsePersona(current => !current)}><span className="studio-switch-track" aria-hidden="true"/><span>{usePersona ? "On" : "Off"}</span></button></div>
-          {usePersona ? <section className="studio-persona-assets" aria-label="Persona assets"><h3>Assets <small>Optional</small></h3><p>{!visualAssetsEnabled ? "Text posts use your voice and audience. Assets are available for images and videos." : "Toggle the saved assets to include with your prompt."}</p>
+          <section className="studio-persona-assets" aria-label="Persona assets"><h3>Assets <small>Optional</small></h3><p>{!usePersona ? "Turn on Persona to use these assets. Your selections are kept while it is off." : !visualAssetsEnabled ? "Text posts use your voice and audience. Assets are available for images and videos." : "Toggle the saved assets to include with your prompt."}</p>
             {personaAssets.length ? personaAssets.map((asset, index) => {
-              const available = visualAssetsEnabled && (kind === "video" || asset.role !== "audio");
+              const available = usePersona && visualAssetsEnabled && (kind === "video" || asset.role !== "audio");
               const selected = selectedPersonaAssetIds.includes(asset.id);
               return <div className="studio-persona-asset" key={asset.id}>
                 {asset.role === "audio" ? <span className="studio-asset-icon"><Mic size={22}/></span> : <img src={asset.url} alt=""/>}
@@ -1754,10 +1743,15 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
                 }}><span className="studio-switch-track" aria-hidden="true"/><span>{available && selected ? "On" : "Off"}</span></button>
               </div>;
             }) : <p>No saved assets yet. You can add them on your Persona page or use References to upload for this content.</p>}
-          </section> : <p>Use your prompt and uploads only. Your asset choices are kept for when you turn Persona back on. Any Persona text already in your prompt stays editable.</p>}
-          <div className="dialog-actions"><button type="button" className="primary" onClick={() => setPersonaOpen(false)}>Done</button></div>
+          </section>
         </div>
-      </ContentDialog>}
+          {visualAssetsEnabled && <button type="button" className="studio-references" onClick={() => setReferencesOpen(true)}><Plus size={16}/>References{referenceCount > 0 && <span className="studio-count">{referenceCount}</span>}</button>}
+        </section>
+        <footer className="studio-submit-bar">
+          <div><span className="studio-output-summary"><PlatformIcon platform={platform}/>{platform} · {kind === "text" ? "Text post" : kind === "image" ? "Image" : "Video"}{kind !== "text" && ` · ${aspectRatio}`}{kind === "video" && ` · ${duration}s`}</span>{submitError && <p className="provider-error" role="alert">{submitError}</p>}</div>
+          <div className="row-actions">{onCancel && <button type="button" onClick={onCancel}>Cancel</button>}<button type="submit" className="primary" disabled={busy}><Wand2 size={18}/>{busy ? <AnimatedDots label={busyLabel}/> : submitLabel}</button></div>
+        </footer>
+      </fieldset>
       {referencesOpen && <ContentDialog title="Reference assets" onClose={() => setReferencesOpen(false)}><CreationAssets personaAssets={personaAssets} selectedIds={selectedPersonaAssetIds} uploads={assetRefs} usePersona={usePersona} video={kind === "video"} onSelect={selectPersonaAssets} onClear={role => selectPersonaAssets(role,[])} onUpload={(role,file) => {setSelectedPersonaAssetIds(current => current.filter(id => !personaAssets.some(asset => asset.id === id && asset.role === role)));updateAssetRef(role,file);}}/><div className="dialog-actions"><button type="button" className="primary" onClick={() => setReferencesOpen(false)}>Done</button></div></ContentDialog>}
     </form>
   );

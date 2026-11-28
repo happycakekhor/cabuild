@@ -1,4 +1,9 @@
 # CABuild Project Handoff
+## 2026-11-28 — Inline Persona and stacked copy fields
+
+- Create Content section3 now shows the Persona master switch and saved-asset switches directly on the page. Removed its status-button/modal step. Assets remain visible while Persona is off, with their switches disabled and choices preserved. Type restrictions, uploads, reference requests and existing Generated/User input behavior remain intact; the separate Persona page is unchanged.
+- Caption and Hashtags each occupy their own full-width row at every viewport. Open Persona assets use the page's normal scroll without an inner scroll region or clipped controls. References retains its optional upload picker. Creation UAT now checks the inline states, full-width copy rows, keyboard access and reachable Generate action rather than requiring arbitrary asset libraries to fit one screen.
+
 ## 2026-11-28 — Three-section Create Content and publishing copy
 
 - Create Content now keeps prompt/caption/hashtags in the left panel, with output settings (2) and a separate Persona section (3) stacked on the right. References moved out of the prompt into Persona. The brief helper and copy disclosure were removed; the standalone Persona page remains unchanged. Persona master/asset switches retain their popup and draft behavior.
