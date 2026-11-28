@@ -1,4 +1,10 @@
 # CABuild Project Handoff
+## 2026-11-28 — Full-screen creation and Persona asset columns
+
+- Prioritized the user-selected 1920 x 1080 desktop at 100%: equal-width composition columns, section 1 spanning the combined height of sections 2 and 3, larger prompt/copy areas, and a footer filling the available screen. Output controls share one compact row. Normal page growth preserves access on shorter screens, unusually long libraries and larger zoom; native browser zoom remains enabled.
+- Persona assets are grouped into Logo, Product photos, Person / avatar and Audio columns. Every saved asset remains available; missing categories display a disabled Not uploaded tile. Persona-off and content-type restrictions preserve existing selections and request behavior. Phone layouts use two asset columns. The standalone Persona page is unchanged.
+- Applied UI/UX Pro Max reflow guidance: fluid text sizes, content-driven minimum heights, no clipping or inverse zoom scaling. Fixture-only creation UAT covers exact desktop fit, equal panel heights, empty categories, 80–200% zoom-equivalent CSS viewports and existing draft/reference/generation journeys. Browser zoom scales the native UI; smaller viewports may scroll to preserve usable controls. Release evidence is recorded in CA_BUILD_Info.md.
+
 ## 2026-11-28 — Inline Persona and stacked copy fields
 
 - Create Content section3 now shows the Persona master switch and saved-asset switches directly on the page. Removed its status-button/modal step. Assets remain visible while Persona is off, with their switches disabled and choices preserved. Type restrictions, uploads, reference requests and existing Generated/User input behavior remain intact; the separate Persona page is unchanged.

@@ -35,6 +35,26 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
  const back=()=>page.getByRole('button',{name:'Back to My Contents',exact:true});
  const fits=async()=>assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'No horizontal page overflow');
  const settle=()=>page.evaluate(()=>Promise.all(document.getAnimations().filter(a=>a.effect?.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{}))));
+ // Prioritize the requested 1920 x 1080 desktop, then exercise zoom-equivalent CSS viewports.
+ for(const zoom of [0.8,1,1.1,1.25,1.5,2]){
+  const width=Math.round(1920/zoom),height=Math.round(1080/zoom);
+  await page.setViewportSize({width,height});await page.goto(base+'/?view=create');await prompt().waitFor();await settle();await fits();
+  const layout=await page.locator('.creation-fields').evaluate(e=>{const rect=s=>document.querySelector(s).getBoundingClientRect(),a=rect('.studio-prompt-panel'),b=rect('.studio-settings-panel'),c=rect('.studio-persona-panel'),f=rect('.studio-submit-bar'),main=document.querySelector('.main');return{left:a.height,right:c.bottom-b.top,footer:f.bottom,scroll:main.scrollHeight,height:main.clientHeight,columns:getComputedStyle(document.querySelector('.studio-persona-columns')).gridTemplateColumns.split(' ').length,overflow:[...e.querySelectorAll('section,label,button')].some(n=>n.scrollWidth>n.clientWidth+1)}});
+  if(width>1000)assert(Math.abs(layout.left-layout.right)<1,'Section 1 matches sections 2 + 3 at '+zoom);
+  if(zoom===1){assert(layout.scroll<=layout.height+1,'1920 x 1080 fits one screen');assert(layout.footer<=1080&&layout.footer>=1020,'Footer fills available desktop height');assert.equal(layout.columns,4);}
+  assert(!layout.overflow,'Controls and asset columns stay contained at zoom-equivalent '+zoom);
+  await page.screenshot({path:'.playwright-mcp/create-layout-zoom-'+zoom+'.png'});
+ }
+ const savedAssets=data.personaProfile.mediaAssets;
+ for(const assets of [savedAssets.slice(0,1),[]]){
+  data.personaProfile.mediaAssets=assets;await page.setViewportSize({width:1920,height:1080});await page.goto(base+'/?view=create');await prompt().waitFor();await settle();
+  assert.equal(await page.locator('.studio-persona-column').count(),4);assert.equal(await page.locator('.studio-persona-asset.is-empty').count(),4-assets.length);
+  for(const button of await page.locator('.studio-persona-asset.is-empty button').all()){assert(await button.isDisabled());assert.equal(await button.getAttribute('aria-checked'),'false');}
+  await page.getByRole('switch',{name:'Use Persona',exact:true}).click();assert.equal(await page.locator('.studio-persona-column').count(),4);assert.equal(await page.locator('.studio-persona-asset button:enabled').count(),0);
+  await page.screenshot({path:'.playwright-mcp/create-layout-empty-'+assets.length+'.png'});
+ }
+ data.personaProfile.mediaAssets=savedAssets;
+ console.log('PASS 1920x1080 screen fit, aligned section heights, four asset columns, disabled missing categories, and 80-200% zoom-equivalent viewports');
  for(const [width,height] of [[1440,900],[1366,768],[1280,800],[1024,768],[768,900],[390,844],[320,700],[844,390]]){
   await page.setViewportSize({width,height});await page.goto(base+'/?view=publish');await page.getByRole('button',{name:'Create Content',exact:true}).click();await page.waitForURL('**/?view=create');await prompt().waitFor();await settle();
   assert.equal(await page.getByRole('heading',{name:'Create Content',level:1,exact:true}).count(),1);assert.equal(await page.getByRole('heading',{name:'My Contents',level:1,exact:true}).count(),0);assert(!(await page.locator('.publish-list').isVisible()));
