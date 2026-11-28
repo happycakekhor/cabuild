@@ -1,4 +1,10 @@
 # CABuild Project Handoff
+## 2026-11-28 — Full-width library and Persona toggles
+
+- My Contents now fills the available workspace width in Grid and Rows, including wide desktop displays. Removed the inherited 1120px cap within the dedicated content workspace; page gutters and unrelated screens are preserved.
+- Create Content keeps required prompt/output controls open. Only optional brief assistance and caption/hashtags use disclosures. Persona is a compact Using / Not using status button that opens an accessible settings dialog with a master switch and individual saved-asset switches while enabled. Off/on preserves the asset subset; disabled Persona excludes saved assets from the request, while device uploads remain independent. Text excludes media and image excludes audio. Choosing a saved asset replaces a device upload of the same role, consistent with References.
+- No API, schema, provider or dependency changes. Extended fixture-only creation UAT for toggles, keyboard/focus, subset payloads and eight viewport sizes; library UAT now includes 1920/2560px full-width coverage. Release evidence is in the persistent project log.
+
 ## 2026-11-25 — Dedicated compact Create Content page
 
 - Create Content is now its own `/?view=create` page in the existing browser tab. My Contents stays the sidebar entry; the breadcrumb/page heading identify Create Content and a Back to My Contents action returns to history. Legacy publish+compose links redirect in place, preserving exact Research source IDs. Draft and library components stay mounted while switching between the two pages, preserving draft fields/uploads, filters and polling; only the active page is visible.

@@ -50,7 +50,7 @@ export default function CreationAssets({ personaAssets, selectedIds, uploads, us
     {section && role && <AssetPickerContainer inline={inlinePicker} title={`Choose ${section.title}`} onClose={close} headingRef={inlineHeading}>
       <div className="asset-picker-page">
         <section className="asset-persona-section"><h3><UserRound size={19} />From Persona</h3>
-          {!usePersona ? <p>Select your Persona at the top of Create Content to use its saved assets.</p> : candidates.length ? <div className="asset-persona-options">{candidates.map((asset, index) => <label key={asset.id} className={draftIds.includes(asset.id) ? "selected" : ""}>
+          {!usePersona ? <p>Turn on Persona in Persona settings to use its saved assets.</p> : candidates.length ? <div className="asset-persona-options">{candidates.map((asset, index) => <label key={asset.id} className={draftIds.includes(asset.id) ? "selected" : ""}>
             <input aria-label={`${section.title} reference ${index + 1}`} type={role === "product photo" ? "checkbox" : "radio"} name="asset-persona-choice" checked={draftIds.includes(asset.id)} onChange={event => setDraftIds(current => role !== "product photo" ? [asset.id] : event.target.checked ? [...current, asset.id] : current.filter(id => id !== asset.id))} />
             {role === "audio" ? <Mic size={36} /> : <img src={asset.url} alt={`${section.title} reference ${index + 1}`} />}
             <span className="asset-reference-label">Reference {index + 1}</span>

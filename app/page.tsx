@@ -30,6 +30,7 @@ import {
   FolderOpen,
   Globe,
   Mic,
+  ChevronRight,
   Lightbulb,
   LayoutGrid,
   List,
@@ -1597,6 +1598,7 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
   const [aiError, setAiError] = useState("");
   const [aiIdea, setAiIdea] = useState("");
   const [referencesOpen, setReferencesOpen] = useState(false);
+  const [personaOpen, setPersonaOpen] = useState(false);
   const [briefModel, setBriefModel] = useState<BriefModelId>("gpt-5-5");
   const [assetRefs, setAssetRefs] = useState<AssetReference[]>([]);
   const [selectedPersonaAssetIds, setSelectedPersonaAssetIds] = useState<string[]>(() => personaAssets.map(asset => asset.id));
@@ -1688,7 +1690,7 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
       const selectedPlatform = String(form.get("platform") || platform || defaultPlatformForKind(kind));
       onStart?.({
         title: activeInitial.sourceTitle,
-        description: visualAssetsEnabled && (assetRefs.length || selectedPersonaAssetIds.length) ? "Preparing selected references and provider generation." : "Preparing provider generation.",
+        description: visualAssetsEnabled && (assetRefs.length || (usePersona && selectedPersonaAssetIds.length)) ? "Preparing selected references and provider generation." : "Preparing provider generation.",
         kind,
         model,
         startedAt: Date.now()
@@ -1748,7 +1750,7 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
             {kind === "image" && <label>Variants<select aria-label="Variants" name="variants" value={variants} onChange={event => setVariants(event.target.value)}>{["1","2","3","4"].map(value => <option key={value}>{value}</option>)}</select></label>}
             {kind === "text" && <><label>Tone<select aria-label="Tone" name="tone" value={tone} onChange={event => setTone(event.target.value)}>{["Practical founder-led","Educational","Contrarian","Executive concise"].map(value => <option key={value}>{value}</option>)}</select></label><label>Length<select aria-label="Length" name="length" value={length} onChange={event => setLength(event.target.value)}>{["Short","Medium","Long"].map(value => <option key={value}>{value}</option>)}</select></label></>}
           </div>
-          <div className="studio-persona"><label><UserRound size={16}/>Persona<select aria-label="Persona" value={usePersona ? "saved" : "none"} onChange={event => {const enabled=event.target.value === "saved";setUsePersona(enabled);setSelectedPersonaAssetIds(enabled ? personaAssets.filter(asset => !assetRefs.some(upload => upload.role === asset.role)).map(asset => asset.id) : []);}}><option value="saved">{persona?.displayName || "Saved persona"}</option><option value="none">No persona</option></select></label><p>{usePersona ? "Use your saved voice, audience and selected brand references." : "Use your prompt and uploads only. Review any persona text already in your prompt."}</p></div>
+          <div className="studio-persona"><button type="button" className="studio-persona-status" aria-label={`Persona: ${usePersona ? "Using" : "Not using"}`} aria-haspopup="dialog" onClick={() => setPersonaOpen(true)}><span><UserRound size={16}/>Persona</span><span className={usePersona ? "persona-status using" : "persona-status"}>{usePersona ? "Using" : "Not using"}</span><ChevronRight size={16}/></button></div>
           <div className="studio-delivery-note"><FolderOpen size={19}/><span>Find your result in <b>My Contents</b>.<small>Generation continues in the background.</small></span></div>
         </section>
         <footer className="studio-submit-bar">
@@ -1756,6 +1758,26 @@ function CreateContentModule({ initial, persona, personaAssets = [], onSubmit, o
           <div className="row-actions">{onCancel && <button type="button" onClick={onCancel}>Cancel</button>}<button type="submit" className="primary" disabled={busy}><Wand2 size={18}/>{busy ? <AnimatedDots label={busyLabel}/> : submitLabel}</button></div>
         </footer>
       </fieldset>
+      {personaOpen && <ContentDialog title="Persona settings" compact className="studio-persona-dialog" onClose={() => setPersonaOpen(false)}>
+        <div className="studio-persona-settings">
+          <div className="studio-persona-toggle-row"><div><h3>{persona?.displayName || "Saved persona"}</h3><p>Use your saved voice and audience for this content.</p></div><button type="button" className="studio-switch" role="switch" aria-label="Use Persona" aria-checked={usePersona} onClick={() => setUsePersona(current => !current)}><span className="studio-switch-track" aria-hidden="true"/><span>{usePersona ? "On" : "Off"}</span></button></div>
+          {usePersona ? <section className="studio-persona-assets" aria-label="Persona assets"><h3>Assets <small>Optional</small></h3><p>{!visualAssetsEnabled ? "Text posts use your voice and audience. Assets are available for images and videos." : "Toggle the saved assets to include with your prompt."}</p>
+            {personaAssets.length ? personaAssets.map((asset, index) => {
+              const available = visualAssetsEnabled && (kind === "video" || asset.role !== "audio");
+              const selected = selectedPersonaAssetIds.includes(asset.id);
+              return <div className="studio-persona-asset" key={asset.id}>
+                {asset.role === "audio" ? <span className="studio-asset-icon"><Mic size={22}/></span> : <img src={asset.url} alt=""/>}
+                <div><b>{asset.label || asset.fileName || `Asset ${index + 1}`}</b><small>{asset.role}{asset.role === "audio" && kind === "image" ? " · Video only" : ""}</small></div>
+                <button type="button" className="studio-switch" role="switch" aria-label={`Use asset ${index + 1}: ${asset.label || asset.fileName || asset.role}`} aria-checked={available && selected} disabled={!available} onClick={() => {
+                  if (!selected) updateAssetRef(asset.role, null);
+                  setSelectedPersonaAssetIds(current => selected ? current.filter(id => id !== asset.id) : [...current, asset.id]);
+                }}><span className="studio-switch-track" aria-hidden="true"/><span>{available && selected ? "On" : "Off"}</span></button>
+              </div>;
+            }) : <p>No saved assets yet. You can add them on your Persona page or use References to upload for this content.</p>}
+          </section> : <p>Use your prompt and uploads only. Your asset choices are kept for when you turn Persona back on. Any Persona text already in your prompt stays editable.</p>}
+          <div className="dialog-actions"><button type="button" className="primary" onClick={() => setPersonaOpen(false)}>Done</button></div>
+        </div>
+      </ContentDialog>}
       {referencesOpen && <ContentDialog title="Reference assets" onClose={() => setReferencesOpen(false)}><CreationAssets personaAssets={personaAssets} selectedIds={selectedPersonaAssetIds} uploads={assetRefs} usePersona={usePersona} video={kind === "video"} onSelect={selectPersonaAssets} onClear={role => selectPersonaAssets(role,[])} onUpload={(role,file) => {setSelectedPersonaAssetIds(current => current.filter(id => !personaAssets.some(asset => asset.id === id && asset.role === role)));updateAssetRef(role,file);}}/><div className="dialog-actions"><button type="button" className="primary" onClick={() => setReferencesOpen(false)}>Done</button></div></ContentDialog>}
     </form>
   );

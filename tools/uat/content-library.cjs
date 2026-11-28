@@ -27,9 +27,10 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
  const fits=async()=>assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1&&[...document.querySelectorAll('dialog[open]')].every(e=>e.scrollWidth<=e.clientWidth+1)),'No horizontal overflow');
  fs.mkdirSync('.playwright-mcp',{recursive:true});
  await page.setViewportSize({width:1800,height:1200});await page.goto(base+'/?view=publish');await card('video').getByRole('button').click();await detail().waitFor();const large=await detail().boundingBox();assert.equal(large.width,1584,'Popup width is another20% larger');assert.equal(large.height,1020,'Popup height remains unchanged');await page.keyboard.press('Escape');
- for(const [width,height] of [[1440,900],[1101,800],[768,900],[390,844],[320,700],[844,390]]){
+ for(const [width,height] of [[2560,1440],[1920,1080],[1440,900],[1101,800],[768,900],[390,844],[320,700],[844,390]]){
   await page.setViewportSize({width,height});await page.goto(base+'/?view=publish');await card('video').waitFor();await settle();
   assert.equal(await page.locator('.content-output-card').count(),6);assert.equal(await page.locator('.content-history-date,.content-output-card time').count(),0);
+  assert(await page.locator('.publish-page').evaluate(e=>Math.abs(e.getBoundingClientRect().right-e.closest('.content-workspace').getBoundingClientRect().right)<1),'My Contents uses full workspace width');
   assert.equal(await page.getByRole('button',{name:/^Preview |^Info$/}).count(),0);assert(!(await page.locator('.publish-list').innerText()).includes('INTERNAL PROMPT'));
   assert.match(await card('video').locator('h3').innerText(),/A quiet moment/);assert.match(await card('video').locator('.content-output-description').innerText(),/cinematic study/);assert.match(await card('legacy').locator('h3').innerText(),/Untitled video/);
   await fits();await page.screenshot({path:'.playwright-mcp/my-content-library-'+width+'.png'});

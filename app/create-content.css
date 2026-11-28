@@ -1,5 +1,7 @@
 /* Dedicated creation page: primary controls fit a laptop screen; optional work expands. */
 .content-workspace > [hidden] { display:none; }
+.content-workspace,.content-workspace > div { min-width:0; width:100%; }
+.content-workspace .publish-page { width:100%; max-width:none; }
 .create-route { display:grid; gap:20px; min-width:0; }
 .app-shell .normal-workspace-frame .quick-create.creation-studio { margin:0; min-width:0; }
 .app-shell .normal-workspace-frame .quick-create.creation-studio .creation-fields { grid-template-columns:minmax(0,1.4fr) minmax(320px,1fr); grid-template-rows:auto auto; gap:18px; align-items:stretch; }
@@ -34,8 +36,29 @@
 .studio-setting-pair,.studio-format-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
 .app-shell .quick-create .studio-model-cost { margin:-9px 0 -3px; color:var(--creator-muted); font-size:11px; line-height:1.4; }
 .studio-persona { border-top:1px solid var(--creator-border); padding-top:14px; }
-.app-shell .quick-create .studio-persona label { grid-template-columns:16px minmax(0,1fr); align-items:center; }
-.studio-persona select { grid-column:1/-1; }
+.app-shell .quick-create .studio-persona-status { width:100%; display:flex; align-items:center; gap:10px; min-height:44px; padding:10px 12px; background:#fff; text-align:left; }
+.studio-persona-status > span:first-child { display:flex; align-items:center; gap:8px; margin-right:auto; }
+.persona-status { white-space:nowrap; border-radius:6px; padding:4px 8px; font-size:12px; background:#f0f3eb; color:#626e65; }
+.persona-status.using { background:#e6efdf; color:#365b3d; }
+.studio-persona-settings { display:grid; gap:20px; }
+.content-dialog.content-dialog-compact.studio-persona-dialog { width:min(600px,calc(100vw - 32px)); height:fit-content; max-height:calc(100dvh - 32px); }
+.studio-persona-settings h3 { margin:0; font-size:15px; line-height:1.5; overflow-wrap:anywhere; }
+.studio-persona-settings p { margin:6px 0 0; font-size:13px; line-height:1.6; color:var(--creator-muted); }
+.studio-persona-toggle-row { display:flex; gap:16px; align-items:center; justify-content:space-between; }
+.studio-persona-toggle-row > div { min-width:0; }
+.studio-persona-assets { border-top:1px solid var(--creator-border); padding-top:20px; }
+.studio-persona-assets h3 small { margin-left:8px; font-size:12px; font-weight:400; color:var(--creator-muted); }
+.studio-persona-asset { display:grid; grid-template-columns:44px minmax(0,1fr) auto; gap:12px; align-items:center; padding:14px 0; border-bottom:1px solid var(--creator-border); }
+.studio-persona-asset img,.studio-asset-icon { width:44px; height:44px; object-fit:contain; border-radius:8px; background:#f0f3eb; }
+.studio-asset-icon { display:grid; place-items:center; }
+.studio-persona-asset b { display:block; font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
+.studio-persona-asset small { display:block; margin-top:4px; font-size:12px; color:var(--creator-muted); }
+.app-shell .quick-create .studio-switch { display:flex; flex:none; align-items:center; justify-content:center; gap:8px; min-width:88px; min-height:44px; padding:6px; background:transparent; border:1px solid transparent; font-size:12px; color:var(--creator-ink); }
+.studio-switch-track { display:block; position:relative; width:36px; height:22px; border-radius:20px; background:#6b756c; flex:none; }
+.studio-switch-track::after { content:''; position:absolute; left:3px; top:3px; width:16px; height:16px; border-radius:50%; background:#fff; }
+.studio-switch[aria-checked=true] .studio-switch-track { background:#365e49; }
+.studio-switch[aria-checked=true] .studio-switch-track::after { transform:translateX(14px); }
+.studio-switch:disabled { opacity:.5; cursor:not-allowed; }
 .studio-delivery-note { display:flex; gap:10px; align-items:center; margin-top:auto; padding:12px; border-radius:10px; background:#f0f5ed; color:var(--creator-muted); font-size:12px; line-height:1.5; }
 .studio-delivery-note > svg { flex:none; color:var(--creator-green); }
 .studio-delivery-note small { display:block; font-size:11px; }
